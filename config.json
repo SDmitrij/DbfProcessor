@@ -1,0 +1,7 @@
+﻿{
+  "ExchangeDirectory": "C:\\Dev\\Dbf",
+  "DbfLookUpDir": "C:\\Dev\\DbfOdbcLookUp",
+  "DbfOdbcConn": "DSN=odbc32dbf;",
+  "SqlServerConn": "Server=localhost\\SQLEXPRESS;Database=AstorDbfBulk;Trusted_Connection=True;",
+  "BatchSize": 10000
+}

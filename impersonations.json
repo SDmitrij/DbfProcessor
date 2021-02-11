@@ -1,0 +1,338 @@
+{
+  "Impersonations": {
+    "K": {
+      "TableName": "receipts",
+			"UniqueColumns": [
+				"SHOP_ID",
+				"CODE",
+				"PRICE",
+				"OPER",
+				"KASSA",
+				"DATE",
+				"TIME",
+				"BAR",
+				"DISC"
+			],
+			"CustomColumns": [],
+			"SqlColumnTypes": {
+				"LINE_NUM": "NUMERIC(8)",
+				"SHOP_ID": "NUMERIC(10) NOT NULL",
+				"CODE": "NUMERIC(8) NOT NULL",
+				"ID_MAG": "NUMERIC(8)",
+				"PRICE": "NUMERIC(9,2) NOT NULL",
+				"WEIGHT": "NUMERIC(10,3)",
+				"OPER": "NUMERIC(2)",
+				"KASSA": "NUMERIC(2) NOT NULL",
+				"DATE": "DATE NOT NULL",
+				"TIME": "CHAR(8) NOT NULL",
+				"BAR": "CHAR(13) NOT NULL",
+				"DEP": "NUMERIC(1)",
+				"DISC": "NUMERIC(9,2) NOT NULL",
+				"REC": "NUMERIC(10)",
+				"Z": "NUMERIC(12)",
+				"CLERK": "NUMERIC(3)",
+				"CARD": "NUMERIC(9)",
+				"PAYMENT": "NUMERIC(9)",
+				"PAYTYPE": "NUMERIC(1)",
+				"M_INPUT": "NUMERIC(1)",
+				"CS": "NUMERIC(9)"
+			}
+    },
+    "KK": {
+      "TableName": "receipts_discounts",
+			"UniqueColumns": [],
+			"CustomColumns": [],
+			"SqlColumnTypes": {
+				"LINE_NUM_K": "NUMERIC(9)",
+				"DISC_TYPE": "NUMERIC(9)",
+				"DISC_PARAM": "NUMERIC(12,3)",
+				"QTY": "NUMERIC(12,3)",
+				"PRICE": "NUMERIC(12,3)",
+				"SUM": "NUMERIC(12,3)",
+				"DISC_SUM": "NUMERIC(12,3)",
+				"CS": "NUMERIC(9)",
+				"CSK": "NUMERIC(9)"
+			}
+    },
+    "C": {
+      "TableName": "sales_by_database",
+			"UniqueColumns": [
+				"PROD_ID",
+				"REP_DATE",
+				"DISC",
+				"SHOP_ID"
+			],
+			"CustomColumns": ["SHOP_ID"],
+			"SqlColumnTypes": {
+				"PROD_ID": "NUMERIC(8) NOT NULL",
+				"REP_DATE": "DATE NOT NULL",
+				"PRICE": "NUMERIC(12,3)",
+				"QTY": "NUMERIC(12,3)",
+				"SUM": "NUMERIC(12,3)",
+				"DISC": "NUMERIC(3) NOT NULL",
+				"DISC_PRICE": "NUMERIC(12,3)",
+				"DISC_SUM": "NUMERIC(12,3)",
+				"SHOP_ID": "NUMERIC(8) NOT NULL"
+			}
+    },
+    "P": {
+      "TableName": "remains",
+			"UniqueColumns": [
+				"PROD_ID",
+				"REP_DATE",
+				"DISC",
+				"SHOP_ID"
+			],
+			"CustomColumns": ["SHOP_ID"],
+			"SqlColumnTypes": {
+				"PROD_ID": "NUMERIC(8) NOT NULL",
+				"REP_DATE": "DATE NOT NULL",
+				"DISC": "NUMERIC(3) NOT NULL",
+				"BEGIN_QTY": "NUMERIC(10,3)",
+				"BEGIN_SUM": "NUMERIC(10,3)",
+				"END_QTY": "NUMERIC(10,3)",
+				"END_SUM": "NUMERIC(10,2)",
+				"BEG_PRICE": "NUMERIC(12,3)",
+				"END_PRICE": "NUMERIC(12,3)",
+				"SHOP_ID": "NUMERIC(8) NOT NULL"
+			}
+    },
+    "PRO": {
+      "TableName": "serial_numbers_of_cash_registers",
+			"UniqueColumns": [],
+			"CustomColumns": [],
+			"SqlColumnTypes": {
+				"RRO_DATE": "DATE",
+				"RRO_TIME": "CHAR(5)",
+				"SHOP": "NUMERIC(9)",
+				"KASSA": "NUMERIC(2)",
+				"SERIAL": "CHAR(15)",
+				"LVI": "NUMERIC(1)"
+			}
+    },
+    "SR": {
+      "TableName": "sales_amounts_and_accounting_balances",
+			"UniqueColumns": [],
+			"CustomColumns": [],
+			"SqlColumnTypes": {
+				"REP_DATE": "DATE",
+				"SALE_SUM": "NUMERIC(12,2)",
+				"REST_SUM": "NUMERIC(12,2)",
+				"CASH_SUM": "NUMERIC(15,2)",
+				"DESC1": "CHAR(254)",
+				"DESC2": "CHAR(254)",
+				"DESC3": "CHAR(254)",
+				"DESC4": "CHAR(254)",
+				"AUTHOR": "CHAR(100)",
+				"POSITION": "CHAR(20)",
+				"RUSALE_SUM": "NUMERIC(12,2)",
+				"RU_KS_SUM": "NUMERIC(12,2)"
+			}
+    },
+    "V": {
+      "TableName": "revaluation_documents",
+			"UniqueColumns": ["SHOP_ID", "DOC_ID", "DOC_DATE", "PROD_ID"],
+			"CustomColumns": [],
+			"SqlColumnTypes": {
+				"SHOP_ID": "NUMERIC(10) NOT NULL",
+				"DOC_ID": "NUMERIC(8) NOT NULL",
+				"DOC_DATE": "DATE NOT NULL",
+				"PROD_ID": "NUMERIC(8) NOT NULL",
+				"QTY": "NUMERIC(12,3)",
+				"OLD_PRICE": "NUMERIC(12,3)",
+				"NEW_PRICE": "NUMERIC(12,3)",
+				"EVENT": "NUMERIC(2)",
+				"COMMENT": "CHAR(254)",
+				"CS": "NUMERIC(9)"
+			}
+    },
+    "SII": {
+      "TableName": "documents_receipt_invoices",
+			"UniqueColumns": [],
+			"CustomColumns": [],
+			"SqlColumnTypes": {
+				"DOC_ID": "NUMERIC(10)",
+				"P_DATE": "DATE",
+				"OFFICE_COD": "NUMERIC(9)",
+				"SUM_DOC": "NUMERIC(12,2)",
+				"PROD_ID": "NUMERIC(8)",
+				"QTY": "NUMERIC(12,3)",
+				"PRICE": "NUMERIC(12,3)",
+				"SUM": "NUMERIC(12,4)",
+				"PARENT_ID": "NUMERIC(15)",
+				"VERSION": "NUMERIC(10)",
+				"INC_DATE": "DATE",
+				"INC_TIME": "CHAR(10)",
+				"OUT_DATE": "DATE",
+				"OUT_TIME": "CHAR(10)",
+				"ORDER_EDI": "CHAR(16)",
+				"UN_TIME": "CHAR(8)",
+				"PAL_COUNT": "NUMERIC(9)",
+				"C_NUM": "CHAR(20)",
+				"C_DRIVER": "CHAR(20)",
+				"ALC_CODE": "CHAR(20)",
+				"REG_ID_A": "CHAR(20)",
+				"REG_ID_B": "CHAR(20)"
+			}
+    },
+      "SIB": {
+				"TableName": "documents_return_invoices",
+				"UniqueColumns": [],
+				"CustomColumns": [],
+				"SqlColumnTypes": {
+					"DOC_ID": "NUMERIC(10)",
+					"P_DATE": "DATE",
+					"OFFICE_COD": "NUMERIC(9)",
+					"SUM_DOC": "NUMERIC(12,2)",
+					"PROD_ID": "NUMERIC(8)",
+					"QTY": "NUMERIC(12,3)",
+					"PRICE": "NUMERIC(12,3)",
+					"SUM": "NUMERIC(12,2)",
+					"VERSION": "NUMERIC(10)",
+					"INIT_DOCID": "NUMERIC(11)",
+					"DOC_TYPE": "NUMERIC(2)",
+					"COMMENT": "CHAR(254)",
+					"ALC_CODE": "CHAR(20)",
+					"REG_ID_A": "CHAR(20)",
+					"REG_ID_B": "CHAR(20)"
+				}
+			},
+      "MOV": {
+				"TableName": "transfer_documents",
+				"UniqueColumns": [],
+				"CustomColumns": [],
+				"SqlColumnTypes": {
+					"DOC_ID": "CHAR(12)",
+					"DOC_DATE": "DATE",
+					"SHOP_IN": "NUMERIC(9)",
+					"SHOP_OUT": "NUMERIC(9)",
+					"SHOP_AV": "NUMERIC(9)",
+					"PRICE": "NUMERIC(9,3)",
+					"PSUM": "NUMERIC(12,2)",
+					"PROD_ID": "NUMERIC(12)",
+					"QTY": "NUMERIC(12,3)",
+					"VERSION": "NUMERIC(10)",
+					"PARENT_ID": "CHAR(25)",
+					"PARENT_D": "DATE",
+					"PDOC_ID": "CHAR(12)",
+					"PDOC_D": "DATE",
+					"COMMENT": "CHAR(100)",
+					"STATUS": "NUMERIC(1)",
+					"NSEND": "NUMERIC(1)",
+					"ALC_CODE": "CHAR(20)",
+					"REG_ID_A": "CHAR(20)",
+					"REG_ID_B": "CHAR(20)"
+				}
+			},
+      "O": {
+				"TableName": "documents_orders",
+				"UniqueColumns": [],
+				"CustomColumns": [],
+				"SqlColumnTypes": {
+					"SHOP_ID": "NUMERIC(10)",
+					"PROV_CODE": "NUMERIC(10)",
+					"ORD_DATE": "DATE",
+					"DOC_ID": "NUMERIC(8)",
+					"PROD_ID": "NUMERIC(8)",
+					"QTY": "NUMERIC(10,2)",
+					"A_SHIFT": "NUMERIC(6)",
+					"CS": "NUMERIC(10)",
+					"AUTO_ORD": "NUMERIC(1)"
+				}
+			},
+      "I":{
+				"TableName": "inventory_documents",
+				"UniqueColumns": [
+					"SHOP_ID",
+					"DOC_ID",
+					"DOC_TYPE",
+					"DATE",
+					"PROD_ID"
+				],
+				"CustomColumns": [],
+				"SqlColumnTypes": {
+					"SHOP_ID": "NUMERIC(10) NOT NULL",
+					"DOC_ID": "NUMERIC(8) NOT NULL",
+					"DOC_TYPE": "NUMERIC(2) NOT NULL",
+					"DATE": "DATE NOT NULL",
+					"PROD_ID": "NUMERIC(8) NOT NULL",
+					"PRICE": "NUMERIC(9,2)",
+					"QTY_CALC": "NUMERIC(10,3)",
+					"QTY_FACT": "NUMERIC(10,3)",
+					"RSN_ID": "NUMERIC(9)",
+					"FIO": "CHAR(254)",
+					"TAB_NUM": "CHAR(30)",
+					"CS": "NUMERIC(9)",
+					"ALC_CODE": "CHAR(20)"
+				}
+			},
+      "PP": {
+				"TableName": "sales_plan",
+				"UniqueColumns": ["DATE", "SHOP_ID"],
+				"CustomColumns": [],
+				"SqlColumnTypes": {
+					"DATE": "DATE NOT NULL",
+					"SHOP_ID": "NUMERIC(8) NOT NULL",
+					"AM_HOURS": "NUMERIC(10)",
+					"AM_DAY": "NUMERIC(10)",
+					"AM_NIGHT": "NUMERIC(10)"
+				}
+			},
+      "NP": {
+				"TableName": "nomenclatures",
+				"UniqueColumns": [],
+				"CustomColumns": [],
+				"SqlColumnTypes": {
+					"DATE": "DATE",
+					"G_ID": "NUMERIC(8)",
+					"GO_CODE": "NUMERIC(8)",
+					"GO_1CCODE": "CHAR(20)",
+					"GO_NAME": "CHAR(200)",
+					"TM_NAME": "CHAR(200)",
+					"TM_1CCODE": "CHAR(30)",
+					"GO_EXP_DT": "NUMERIC(10)",
+					"GO_BRUTTO": "NUMERIC(10,3)",
+					"PRV_LABEL": "CHAR(4)"
+				}
+			},
+		"NG": {
+			"TableName": "groups",
+			"UniqueColumns": [],
+			"CustomColumns": [],
+			"SqlColumnTypes": {
+				"DATE": "DATE",
+				"G_ID": "NUMERIC(8)",
+				"G_DIM": "CHAR(200)",
+				"G_G1_DIM": "CHAR(200)",
+				"G_G2_DIM": "CHAR(200)",
+				"G_G3_DIM": "CHAR(200)"
+			}
+		},
+		"DN": {
+			"TableName": "day_night",
+			"UniqueColumns": [
+				"DATE",
+				"SHOP_ID"
+			],
+			"CustomColumns": [],
+			"SqlColumnTypes": {
+				"DATE": "SMALLDATETIME NOT NULL",
+				"SHOP_ID": "INT NOT NULL",
+				"SUM_R_D": "REAL NOT NULL",
+				"SUM_G_D": "REAL NOT NULL",
+				"AM_R_D": "REAL NOT NULL",
+				"AM_CH_D": "REAL NOT NULL",
+				"AM_P_D": "REAL NOT NULL",
+				"WEIGHT_D": "REAL NOT NULL",
+				"ALLDAY": "INT NOT NULL",
+				"SUM_R_N": "REAL NOT NULL",
+				"SUM_G_N": "REAL NOT NULL",
+				"AM_R_N": "REAL NOT NULL",
+				"AM_CH_N": "REAL NOT NULL",
+				"AM_P_N": "REAL NOT NULL",
+				"WEIGHT_N": "REAL NOT NULL"
+			}
+		}
+
+  }
+}
