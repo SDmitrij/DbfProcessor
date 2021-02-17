@@ -10,6 +10,19 @@ END
 
 EXEC('CREATE PROCEDURE [dbo].[sp_MergeSalesPlan] AS
 BEGIN
+WITH CTE AS 
+	(SELECT *, ROW_NUMBER() 
+		OVER(
+				PARTITION BY
+					SHOP_ID,
+					DATE
+				ORDER BY 
+					SHOP_ID,
+					DATE
+		) rnk FROM [stage].[sales_plan]
+	)
+DELETE FROM CTE
+WHERE rnk > 1
 
 	MERGE [dbo].[sales_plan] AS target
 	USING [stage].[sales_plan] AS source

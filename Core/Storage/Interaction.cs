@@ -26,13 +26,9 @@ namespace DbfProcessor.Core.Storage
 
         public void Take(ICollection<SharedParent> parents)
         {
+            if (parents.Count == 0) return;
             try
             {
-                if (parents.Count == 0)
-                {
-                    Log.Accept(new Execution("There are nothing to sync", LoggingType.Info));
-                    return;
-                }
                 _parents = parents;
                 Apply();
             }  catch (Exception e)
@@ -69,12 +65,27 @@ namespace DbfProcessor.Core.Storage
             else return true;
         }
 
+        public void Stage()
+        {
+            string sqlStageDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Sql", "Stage");
+            if (!Directory.Exists(sqlStageDir))
+                throw new Exception("Directory with stage sql does not exists!");
+            DirectoryInfo sqlStageDirInf = new DirectoryInfo(sqlStageDir);
+            FileInfo stageFile = sqlStageDirInf.GetFiles("*.sql")
+                .Where(f => f.Name.Replace(".sql", string.Empty).Equals("Stage")).FirstOrDefault();
+            if (stageFile is null)
+                throw new Exception("Can't find stage sql file");
+            string sqlStageQuery = File.ReadAllText(stageFile.FullName);
+            if (sqlStageQuery.Equals(string.Empty))
+                throw new Exception($"Stage sql file {stageFile.Name} does not have any content");
+            ExecuteOnly(sqlStageQuery);
+        }
+
         #region private
         private void Apply()
         {
             Loop();
             CreateProcedures();
-            Stage();
         }
 
         private void Loop()
@@ -130,22 +141,6 @@ namespace DbfProcessor.Core.Storage
             }
         }
 
-        private void Stage()
-        {
-            string sqlStageDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Sql", "Stage");
-            if (!Directory.Exists(sqlStageDir))
-                throw new Exception("Directory with stage sql does not exists!");
-            DirectoryInfo sqlStageDirInf = new DirectoryInfo(sqlStageDir);
-            FileInfo stageFile = sqlStageDirInf.GetFiles("*.sql")
-                .Where(f => f.Name.Replace(".sql", string.Empty).Equals("Stage")).FirstOrDefault();
-            if (stageFile is null)
-                throw new Exception("Can't find stage sql file");
-            string sqlStageQuery = File.ReadAllText(stageFile.FullName);
-            if (sqlStageQuery.Equals(string.Empty))
-                throw new Exception($"Stage sql file {stageFile.Name} does not have any content");
-            ExecuteOnly(sqlStageQuery);
-        }
-
         private void BulkCopy()
         {
             static string execQuery(SharedChild child, bool bulked)
@@ -189,7 +184,10 @@ namespace DbfProcessor.Core.Storage
             {
                 using SqlConnection connection = new SqlConnection(Config.SqlServerConn);
                 connection.Open();
-                SqlCommand command = new SqlCommand(sql, connection);
+                SqlCommand command = new SqlCommand(sql, connection)
+                {
+                    CommandTimeout = 0
+                };
                 return command.ExecuteNonQuery();
             } catch (Exception e)
             {

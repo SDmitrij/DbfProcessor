@@ -10,6 +10,24 @@ END
 
 EXEC('CREATE PROCEDURE [dbo].[sp_MergeRemains] AS
 BEGIN
+WITH CTE AS 
+	(SELECT *, ROW_NUMBER() 
+		OVER(
+				PARTITION BY
+					SHOP_ID,
+					PROD_ID,
+					REP_DATE,
+					DISC
+				ORDER BY 
+					SHOP_ID,
+					PROD_ID,
+					REP_DATE,
+					DISC
+		) rnk FROM [stage].[remains]
+	)
+DELETE FROM CTE
+WHERE rnk > 1
+
 	MERGE [dbo].[remains] AS target
 	USING [stage].[remains] AS source
 		ON (target.SHOP_ID = source.SHOP_ID 

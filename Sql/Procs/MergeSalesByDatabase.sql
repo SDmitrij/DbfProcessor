@@ -10,6 +10,24 @@ END
 
 EXEC('CREATE PROCEDURE [dbo].[sp_MergeSalesByDataBase] AS
 BEGIN
+WITH CTE AS 
+	(SELECT *, ROW_NUMBER() 
+		OVER(
+				PARTITION BY
+					SHOP_ID,
+					PROD_ID,
+					REP_DATE,
+					DISC
+				ORDER BY 
+					SHOP_ID,
+					PROD_ID,
+					REP_DATE,
+					DISC
+		) rnk FROM [stage].[sales_by_database]
+	)
+DELETE FROM CTE
+WHERE rnk > 1
+
 	MERGE [dbo].[sales_by_database] AS target
 	USING [stage].[sales_by_database] AS source
 		ON (target.SHOP_ID = source.SHOP_ID 

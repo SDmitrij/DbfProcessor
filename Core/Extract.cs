@@ -16,8 +16,8 @@ namespace DbfProcessor.Core
     public class Extract
     {
         #region private fields
-        private string _currPack;
-        private readonly ICollection<SharedParent> _tables = new List<SharedParent>();
+        private string _currPackage;
+        private readonly ICollection<SharedParent> _parents = new List<SharedParent>();
         #endregion
         #region private properties
         private Logging Log => Logging.GetLogging();
@@ -26,13 +26,23 @@ namespace DbfProcessor.Core
         private Interaction Interaction => new Interaction();
         #endregion
 
-        public ICollection<SharedParent> GetTables() => _tables;
-
-        public void ProcessDbf(string path)
+        public ICollection<SharedParent> GetParents()
         {
+            if (_parents.Count == 0)
+            {
+                Log.Accept(new Execution("There is nothing to sync", LoggingType.Info));
+                return new List<SharedParent>();
+            }
+            return _parents;
+        }
+
+        public void Clear() => _parents.Clear();
+
+        public void ProcessDbf(string package)
+        {
+            _currPackage = package;
             try
             {
-                _currPack = Path.GetDirectoryName(path);
                 InitializeTables();
             } catch (Exception e)
             {
@@ -41,34 +51,34 @@ namespace DbfProcessor.Core
         }
 
         #region private
-        private void FillSharedTable(string tableName, string dbfName)
+        private void FillSharedTable(string table, string dbf)
         {
-            if (Interaction.GetSyncInfo(dbfName)) return;
-            string tableType = RetrieveTypeFromName(tableName);
+            if (Interaction.GetSyncInfo(dbf)) return;
+            string tableType = RetrieveTypeFromName(table);
             TableInfo tableInfo = Impersonation.GetImpersonateTable(tableType);
-            DataTable dbfData = ReceiveData(tableName, tableType);
+            DataTable dbfData = ReceiveData(table, tableType);
 
             if (tableInfo.CustomColumns.Count > 0)
             {
-                AddCustomColumnsToDataTable(dbfData, tableInfo);
-                RetrieveAndFillShopNum(dbfData, tableName);
+                AddCustomColumns(dbfData, tableInfo);
+                RetrieveShopNum(dbfData, table);
             }
-            if (!_tables.Any(t => t.TableType == tableType))
+            if (!_parents.Any(t => t.TableType == tableType))
             {
-                _tables.Add(new SharedParent
+                _parents.Add(new SharedParent
                 {
                     TableType = tableType,
                     SharedChilds = new List<SharedChild>()
                 });
             }
-            SharedParent parent = _tables.Where(t => t.TableType == tableType)
+            SharedParent parent = _parents.Where(t => t.TableType == tableType)
                 .FirstOrDefault();
             if (parent is null) 
                 throw new Exception($"Can't find table with type: [{tableType}]");
             SharedChild child = new SharedChild
             {
-                FileName = dbfName,
-                PackageName = _currPack,
+                FileName = dbf,
+                PackageName = _currPackage,
                 Rows = dbfData.Select()
             };
             parent.SharedChilds.Add(child);
@@ -134,13 +144,13 @@ namespace DbfProcessor.Core
             throw new Exception($"Empty table type on [{table}]");
         }
 
-        private static void AddCustomColumnsToDataTable(DataTable dataTable, TableInfo tableInfo)
+        private static void AddCustomColumns(DataTable dataTable, TableInfo tableInfo)
         {
             foreach (string customCol in tableInfo.CustomColumns) 
                 dataTable.Columns.Add(customCol, typeof(int));
         }
 
-        private static void RetrieveAndFillShopNum(DataTable dataTable, string table)
+        private static void RetrieveShopNum(DataTable dataTable, string table)
         {
             if (!int.TryParse(table.Substring(0, table.IndexOf("_")), out int shopNum))
                 throw new Exception($"Can't parse shop number from dbf name: {table}");

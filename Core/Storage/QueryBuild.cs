@@ -60,7 +60,7 @@ namespace DbfProcessor.Core.Storage
         private void Index()
         {
             StringBuilder indexQuery = new StringBuilder($"IF NOT EXISTS(SELECT * FROM sys.indexes " +
-                $"WHERE name = '[{_tableInfo.TableName}_clustered]' AND object_id " +
+                $"WHERE name = '{_tableInfo.TableName}_clustered' AND object_id " +
                 $"= OBJECT_ID('[dbo].[{_tableInfo.TableName}]'))\nBEGIN\n");
 
             indexQuery.Append($"\tEXEC('CREATE UNIQUE CLUSTERED INDEX [{_tableInfo.TableName}_clustered] " +
