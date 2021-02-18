@@ -16,21 +16,24 @@ namespace DbfProcessor.Core.Storage
         private SharedParent _parent;
         private TableInfo _tableInfo;
         private ICollection<SharedParent> _parents;
+        private readonly QueryBuild _queryBuild;
         #endregion
         #region private properties
         private Impersonation Impersonation => Impersonation.GetInstance();
         private Config Config => ConfigInstance.GetInstance().Config();
         private Logging Log => Logging.GetLogging();
-        private QueryBuild QueryBuild => new QueryBuild();
+        private QueryBuild QueryBuild => _queryBuild;
         #endregion
-
+      
+        public Interaction() => _queryBuild = new QueryBuild();
+       
         public void Take(ICollection<SharedParent> parents)
         {
             if (parents.Count == 0) return;
             try
             {
                 _parents = parents;
-                Apply();
+                Loop();
             }  catch (Exception e)
             {
                 Log.Accept(new Execution(e.Message));
@@ -81,22 +84,39 @@ namespace DbfProcessor.Core.Storage
             ExecuteOnly(sqlStageQuery);
         }
 
-        #region private
-        private void Apply()
+        public void CreateProcedures()
         {
-            Loop();
-            CreateProcedures();
+            string procsSqlDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Sql", "Procs");
+            if (!Directory.Exists(procsSqlDir))
+                throw new Exception("Directory with sql procedures does not exists!");
+            DirectoryInfo procsSqlDirInf = new DirectoryInfo(procsSqlDir);
+            FileInfo[] sqlProcedureFiles = procsSqlDirInf.GetFiles("*.sql");
+            if (sqlProcedureFiles.Length == 0)
+                throw new Exception("Sql procs dir does not conatains any sql file");
+
+            foreach (FileInfo sqlFile in sqlProcedureFiles)
+            {
+                string sqlQuery = File.ReadAllText(sqlFile.FullName);
+                if (sqlQuery.Equals(string.Empty))
+                    throw new Exception($"Sql file's: {sqlFile.Name} content is empty");
+                ExecuteOnly(sqlQuery);
+            }
         }
 
+        #region private
         private void Loop()
         {
             foreach (SharedParent parent in _parents)
             {
                 _parent = parent;
                 _tableInfo = Impersonation.GetImpersonateTable(_parent.TableType);
+
                 QueryBuild.Build(_parent);
                 TableSeed();
-                if (_tableInfo.UniqueColumns.Count > 0) ApplyIndex();
+
+                if (_tableInfo.UniqueColumns.Count > 0) 
+                    ApplyIndex();
+
                 BulkCopy();
             }
         }
@@ -108,8 +128,10 @@ namespace DbfProcessor.Core.Storage
                 throw new Exception("Directory with base sql does not exists!");
 
             DirectoryInfo sqlDirInfo = new DirectoryInfo(baseSqlDir);
-            FileInfo baseSqlFile = sqlDirInfo.GetFiles("*.sql")
-                .Where(f => f.Name.Replace(".sql", string.Empty).Equals("Seed"))
+            FileInfo baseSqlFile = sqlDirInfo
+                .GetFiles("*.sql")
+                .Where(f => f.Name.Replace(".sql", string.Empty)
+                .Equals("Seed"))
                 .FirstOrDefault();
 
             if (baseSqlFile is null)
@@ -120,25 +142,6 @@ namespace DbfProcessor.Core.Storage
                 throw new Exception($"Base sql file {baseSqlFile.FullName} " +
                     "does not have any content");
             ExecuteOnly(baseSql);
-        }
-
-        private void CreateProcedures()
-        {
-            string procsSqlDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Sql", "Procs");
-            if (!Directory.Exists(procsSqlDir))
-                throw new Exception("Directory with sql procedures does not exists!");
-            DirectoryInfo procsSqlDirInf = new DirectoryInfo(procsSqlDir);
-            FileInfo[] sqlProcedureFiles = procsSqlDirInf.GetFiles("*.sql");
-            if (sqlProcedureFiles.Length == 0) 
-                throw new Exception("Sql procs dir does not conatains any sql file");
-
-            foreach (FileInfo sqlFile in sqlProcedureFiles)
-            {
-                string sqlQuery = File.ReadAllText(sqlFile.FullName);
-                if (sqlQuery.Equals(string.Empty))
-                    throw new Exception($"Sql file's: {sqlFile.Name} content is empty");
-                ExecuteOnly(sqlQuery);
-            }
         }
 
         private void BulkCopy()
@@ -153,11 +156,11 @@ namespace DbfProcessor.Core.Storage
                 {
                     BulkExecute(child);
                     ExecuteOnly(execQuery(child, true));
-                    Log.Accept(new Bulk($"Bulk successed for table in file: {child.FileName}", LoggingType.Info));
+                    Log.Accept(new Bulk($"Bulk successed for table in file: {child.FileName}"));
                 } catch (Exception e)
                 {
                     ExecuteOnly(execQuery(child, false));
-                    Log.Accept(new Bulk($"Bulk failed for table in file: {child.FileName}"));
+                    Log.Accept(new Bulk($"Bulk failed for table in file: {child.FileName}", LoggingType.Error));
                     Log.Accept(new Execution(e.Message));
                 }
             }

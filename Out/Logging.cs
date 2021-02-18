@@ -7,7 +7,8 @@ namespace DbfProcessor.Out
     public class Logging
     {
         private static Logging _logging;
-        private readonly ICollection<IResult> _results = new List<IResult>();
+        private readonly ICollection<IResult> _results;
+        private Logging() => _results = new List<IResult>();
 
         public void Accept(IResult result) => _results.Add(result);
 

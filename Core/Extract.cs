@@ -17,14 +17,21 @@ namespace DbfProcessor.Core
     {
         #region private fields
         private string _currPackage;
-        private readonly ICollection<SharedParent> _parents = new List<SharedParent>();
+        private readonly Interaction _interaction;
+        private readonly ICollection<SharedParent> _parents;
         #endregion
         #region private properties
         private Logging Log => Logging.GetLogging();
         private Config Config => ConfigInstance.GetInstance().Config();
         private Impersonation Impersonation => Impersonation.GetInstance();
-        private Interaction Interaction => new Interaction();
+        private Interaction Interaction => _interaction;
         #endregion
+
+        public Extract()
+        {
+            _interaction = new Interaction();
+            _parents = new List<SharedParent>();
+        }
 
         public ICollection<SharedParent> GetParents()
         {
@@ -38,7 +45,7 @@ namespace DbfProcessor.Core
 
         public void Clear() => _parents.Clear();
 
-        public void ProcessDbf(string package)
+        public void ProcessPack(string package)
         {
             _currPackage = package;
             try
@@ -51,7 +58,7 @@ namespace DbfProcessor.Core
         }
 
         #region private
-        private void FillSharedTable(string table, string dbf)
+        private void FillShareds(string table, string dbf)
         {
             if (Interaction.GetSyncInfo(dbf)) return;
             string tableType = RetrieveTypeFromName(table);
@@ -96,12 +103,12 @@ namespace DbfProcessor.Core
                     string trunTableName = currentTableName.Substring(0, currentTableName.LastIndexOf("_"));
                     string newFilePath = Path.Combine(connection.Database, $"{trunTableName}.dbf");
                     File.Move(table.FullName, newFilePath);
-                    FillSharedTable(trunTableName, table.Name);
+                    FillShareds(trunTableName, table.Name);
                     File.Move(newFilePath, Path.Combine(connection.Database, $"{currentTableName}.dbf"));
                 }
                 else
                 {
-                    FillSharedTable(currentTableName, table.Name);
+                    FillShareds(currentTableName, table.Name);
                 }
             }
         }
@@ -110,13 +117,14 @@ namespace DbfProcessor.Core
         {
             using OdbcConnection connection = new OdbcConnection(Config.DbfOdbcConn);
             connection.Open();
-            OdbcCommand cmd = connection.CreateCommand();
+            OdbcCommand command = connection.CreateCommand();
             DataTable dataTable = new DataTable();
-            string toSelect = string.Join(",", Impersonation.GetImpersonateTable(type)
-                .SqlColumnTypes.Keys.Except(Impersonation.GetImpersonateTable(type).CustomColumns).ToList());
+            TableInfo imperTable = Impersonation.GetImpersonateTable(type);
+            string toSelect = string.Join(",", imperTable.SqlColumnTypes.Keys
+                .Except(imperTable.CustomColumns).ToList());
 
-            cmd.CommandText = $"SELECT {toSelect} FROM {dbfTable}";
-            dataTable.Load(cmd.ExecuteReader());
+            command.CommandText = $"SELECT {toSelect} FROM {dbfTable}";
+            dataTable.Load(command.ExecuteReader());
             return dataTable;
         }
         #endregion

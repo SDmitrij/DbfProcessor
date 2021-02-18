@@ -5,3 +5,5 @@ EXEC [dbo].[sp_MergeRemains];
 EXEC [dbo].[sp_MergeRevaluationDocuments];
 EXEC [dbo].[sp_MergeSalesByDatabase];
 EXEC [dbo].[sp_MergeSalesPlan];
+EXEC [dbo].[sp_MergeNomenclatures];
+EXEC [dbo].[sp_MergeGroups];

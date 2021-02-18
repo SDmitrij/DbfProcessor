@@ -1,10 +1,8 @@
 ﻿using DbfProcessor.Core.Storage;
 using DbfProcessor.Models;
-using DbfProcessor.Models.Infrastructure;
 using DbfProcessor.Out;
 using DbfProcessor.Out.Concrete;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 
@@ -13,16 +11,22 @@ namespace DbfProcessor.Core
     public class Exchange
     {
         #region private fields
-        private readonly Extract _extract = new Extract();
+        private readonly Extract _extract;
+        private readonly Interaction _interaction;
         #endregion
         #region private properties
         private static Logging Log => Logging.GetLogging();
         private static Config Config => ConfigInstance.GetInstance().Config();
         private static DirectoryInfo ExchangeDirInfo => new DirectoryInfo(Config.ExchangeDirectory);
-        public ICollection<SharedParent> GetResults() => _extract.GetParents();
         private Extract Extract => _extract;
-        private Interaction Interaction => new Interaction();
+        private Interaction Interaction => _interaction;
         #endregion
+        public Exchange()
+        {
+            _extract = new Extract();
+            _interaction = new Interaction();
+        }
+
         public void Run()
         {
             try
@@ -31,6 +35,7 @@ namespace DbfProcessor.Core
                 Interaction.ApplyBase();
                 HandleOrphans();
                 HandleZip();
+                Interaction.CreateProcedures();
                 Interaction.Stage();
             } catch (Exception e)
             {
@@ -103,7 +108,7 @@ namespace DbfProcessor.Core
             {
                 string lookedUpDbf = Path.Combine(Config.DbfLookUpDir, dbfFile.Name); 
                 File.Move(dbfFile.FullName, lookedUpDbf);
-                Extract.ProcessDbf(package);
+                Extract.ProcessPack(package);
                 File.Delete(lookedUpDbf);
             }
         }
