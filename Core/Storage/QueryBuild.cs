@@ -27,7 +27,8 @@ namespace DbfProcessor.Core.Storage
                 _tableInfo = Impersonation.GetImpersonateTable(_parent.TableType);
 
                 Create();
-                if (_tableInfo.UniqueColumns.Count > 0) Index();
+                if (_tableInfo.UniqueColumns.Count > 0) 
+                    Index();
             } catch (Exception e)
             {
                 Log.Accept(new Execution($"Failed to build query for {_parent.TableType} problem: {e.Message}"));
