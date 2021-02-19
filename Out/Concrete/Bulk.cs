@@ -14,8 +14,10 @@ namespace DbfProcessor.Out.Concrete
 
         public string GetFile()
         {
-            if (_type == LoggingType.Info) return "bulk_success.txt";
-            if (_type == LoggingType.Error) return "bulk_failed.txt";
+            if (_type == LoggingType.Info) 
+                return "bulk_success.txt";
+            if (_type == LoggingType.Error) 
+                return "bulk_failed.txt";
             return string.Empty;
         }
 

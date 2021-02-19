@@ -58,12 +58,14 @@ namespace DbfProcessor.Core.Storage
             connection.Open();
             SqlCommand command = new SqlCommand(query, connection);
             SqlDataReader reader = command.ExecuteReader();
+           
             if (!reader.HasRows)
             {
                 Log.Accept(new Execution("Sync table is empty...", LoggingType.Info));
                 return false;
             }
             reader.Read();
+            if (reader.IsDBNull(0)) return false;
             if (reader.GetInt32(0) == 0) return false;
             else return true;
         }

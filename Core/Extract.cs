@@ -60,7 +60,11 @@ namespace DbfProcessor.Core
         #region private
         private void FillShareds(string table, string dbf)
         {
-            if (Interaction.GetSyncInfo(dbf)) return;
+            if (Interaction.GetSyncInfo(dbf))
+            {
+                Log.Accept(new Execution($"Dbf file: {dbf} has already synced", LoggingType.Info));
+                return;
+            }    
             string tableType = RetrieveTypeFromName(table);
             TableInfo tableInfo = Impersonation.GetImpersonateTable(tableType);
             DataTable dbfData = ReceiveData(table, tableType);

@@ -9,7 +9,7 @@ namespace DbfProcessor.Core
         private readonly FileInfo[] _packages;
         private readonly int _total;
         private int _iteration = 1;
-        public bool HasNext => _iteration < _total;
+        public bool HasNext => _iteration <= _total;
 
         public Partition(FileInfo[] packages)
         {
