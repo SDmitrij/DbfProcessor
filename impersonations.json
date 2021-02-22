@@ -1,7 +1,8 @@
 {
   "Impersonations": {
     "K": {
-      "TableName": "receipts",
+			"TableName": "receipts",
+			"Ignore": true,
 			"UniqueColumns": [
 				"SHOP_ID",
 				"CODE",
@@ -40,6 +41,7 @@
     },
 		"KK": {
 			"TableName": "receipts_discounts",
+			"Ignore": true,
 			"UniqueColumns": [],
 			"CustomColumns": [],
 			"SqlColumnTypes": {
@@ -80,7 +82,7 @@
 				"QTY": "REAL",
 				"SUM": "REAL",
 				"DISC_SUM": "REAL",
-				"DISC_PARAM": "REAL",
+				"DISC_PARAM": "REAL NOT NULL",
 				"DISC_TYPE": "NUMERIC(9)",
 				"CARD_TYPE": "NUMERIC(9)",
 				"CARD_ID": "CHAR(40)"

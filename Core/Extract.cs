@@ -25,6 +25,7 @@ namespace DbfProcessor.Core
         private Config Config => ConfigInstance.GetInstance().Config();
         private Impersonation Impersonation => Impersonation.GetInstance();
         private Interaction Interaction => _interaction;
+        private ICollection<SharedParent> Parents => _parents;
         #endregion
 
         public Extract()
@@ -35,15 +36,15 @@ namespace DbfProcessor.Core
 
         public ICollection<SharedParent> GetParents()
         {
-            if (_parents.Count == 0)
+            if (Parents.Count == 0)
             {
                 Log.Accept(new Execution("There is nothing to sync", LoggingType.Info));
                 return new List<SharedParent>();
             }
-            return _parents;
+            return Parents;
         }
 
-        public void Clear() => _parents.Clear();
+        public void Clear() => Parents.Clear();
 
         public void ProcessPack(string package)
         {
@@ -60,29 +61,29 @@ namespace DbfProcessor.Core
         #region private
         private void FillShareds(string table, string dbf)
         {
-            if (Interaction.GetSyncInfo(dbf))
-            {
-                Log.Accept(new Execution($"Dbf file: {dbf} has already synced", LoggingType.Info));
-                return;
-            }    
             string tableType = RetrieveTypeFromName(table);
             TableInfo tableInfo = Impersonation.GetImpersonateTable(tableType);
+            if (!NeedSync(dbf, tableInfo))
+            {
+                Log.Accept(new Execution($"No need to sync {dbf}, it has already synced or ignored", 
+                    LoggingType.Info));
+                return;
+            }
             DataTable dbfData = ReceiveData(table, tableType);
-
             if (tableInfo.CustomColumns.Count > 0)
             {
                 AddCustomColumns(dbfData, tableInfo);
                 RetrieveShopNum(dbfData, table);
             }
-            if (!_parents.Any(t => t.TableType == tableType))
+            if (!Parents.Any(t => t.TableType == tableType))
             {
-                _parents.Add(new SharedParent
+                Parents.Add(new SharedParent
                 {
                     TableType = tableType,
                     SharedChilds = new List<SharedChild>()
                 });
             }
-            SharedParent parent = _parents.Where(t => t.TableType == tableType)
+            SharedParent parent = Parents.Where(t => t.TableType.Equals(tableType))
                 .FirstOrDefault();
             if (parent is null) 
                 throw new Exception($"Can't find table with type: [{tableType}]");
@@ -93,6 +94,15 @@ namespace DbfProcessor.Core
                 Rows = dbfData.Select()
             };
             parent.SharedChilds.Add(child);
+        }
+
+        private bool NeedSync(string dbf, TableInfo info)
+        {
+            if (info.Ignore) return false;
+            if (Interaction.GetSyncInfo(dbf))
+                return false;
+             else
+                return true;
         }
 
         private void InitializeTables()
