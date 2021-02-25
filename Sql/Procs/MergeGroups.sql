@@ -7,11 +7,7 @@ BEGIN
      EXEC('DROP PROCEDURE [dbo].[sp_MergeGroups]')
 END
 
-<<<<<<< HEAD
 EXEC('CREATE PROCEDURE [dbo].[sp_MergeGroups] AS
-=======
-EXEC('ALTER PROCEDURE [dbo].[sp_MergeGroups] AS
->>>>>>> b8c25b7c6deb5adb4015eb877ce103fdf45bd261
 BEGIN
 WITH CTE AS 
 	(SELECT *, ROW_NUMBER() 
