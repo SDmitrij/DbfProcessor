@@ -17,28 +17,12 @@ namespace DbfProcessor.Core
         private readonly ICollection<SharedParent> _parents;
         #endregion
         #region private properties
-        private Logging Log => Logging.GetLogging();
-        private Config Config => ConfigInstance.GetInstance().Config();
-        private Impersonation Impersonation => Impersonation.GetInstance();
+        private static Logging Log => Logging.GetLogging();
+        private static Config Config => ConfigInstance.GetInstance().Config();
+        private static Impersonation Impersonation => Impersonation.GetInstance();
         private ICollection<SharedParent> Parents => _parents;
         #endregion
-
-        public Extract()
-        {
-            _parents = new List<SharedParent>();
-        }
-
-        public ICollection<SharedParent> GetParents()
-        {
-            if (Parents.Count == 0)
-            {
-                Log.Accept(new Execution("There is nothing to sync", LoggingType.Info));
-                return new List<SharedParent>();
-            }
-            return Parents;
-        }
-
-        public void Clear() => Parents.Clear();
+        public Extract() => _parents = new List<SharedParent>();
 
         public void Process(ICollection<ExtractionDto> dtos)
         {
@@ -55,6 +39,18 @@ namespace DbfProcessor.Core
                 }
             }
         }
+
+        public ICollection<SharedParent> GetParents()
+        {
+            if (Parents.Count == 0)
+            {
+                Log.Accept(new Execution("There is nothing to sync", LoggingType.Info));
+                return new List<SharedParent>();
+            }
+            return Parents;
+        }
+
+        public void Clear() => Parents.Clear();
 
         #region private
         private void FillShareds(ExtractionDto dto)

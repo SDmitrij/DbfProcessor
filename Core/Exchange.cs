@@ -42,13 +42,23 @@ namespace DbfProcessor.Core
             {
                 CheckInfrastructure();
                 Interaction.ApplyBase();
-                HandleOrphans();
-                HandleZip();
+                ProcessOrphans();
+
+                Partition partition = new Partition(ExchangeDirInfo.GetFiles("*.zip"));
+                while (partition.HasNext)
+                {
+                    ProcessZips(partition.Get());
+                    Interaction.Take(Extract.GetParents());
+                    Extract.Clear();
+                }
+
                 Interaction.CreateProcedures();
                 Interaction.Stage();
-            } catch (ExchangeException e)
+            }
+            catch (ExchangeException e)
             {
                 Log.Accept(new Execution(e.Message));
+                throw;
             }
         }
         #region private
@@ -65,19 +75,7 @@ namespace DbfProcessor.Core
                 throw new ExchangeException("Exchange directory is empty");
         }
 
-        private void HandleZip()
-        {
-            Partition partition = new Partition(ExchangeDirInfo.GetFiles("*.zip"));
-            while (partition.HasNext)
-            {
-                FileInfo[] partitions = partition.Get();
-                ExtractZip(partitions);
-                Interaction.Take(Extract.GetParents());
-                Extract.Clear();
-            }
-        }
-
-        private void ExtractZip(FileInfo[] parts)
+        private void ProcessZips(FileInfo[] parts)
         {
             foreach (FileInfo file in parts)
             {
@@ -91,11 +89,15 @@ namespace DbfProcessor.Core
                 string newUnzipPath = Path.Combine(Config.DbfLookUpDir, currUnzipDirInfo.Name);
                 currUnzipDirInfo.MoveTo(newUnzipPath);
                 CopyToLookUp(currUnzipDirInfo.FullName);
+                FillExtractionDtos(currUnzipDirInfo.FullName);
+                Extract.Process(Dtos);
+                Dtos.Clear();
                 Directory.Delete(newUnzipPath, true);
+                CleanLookUp();
             }
         }
 
-        private void HandleOrphans()
+        private void ProcessOrphans()
         {
             if (ExchangeDirInfo.GetFiles("*.dbf").Length == 0)
             {
@@ -126,48 +128,37 @@ namespace DbfProcessor.Core
                     dbfFileName = dbfFileName.Substring(0, dbfFileName.LastIndexOf("_"));
                     string newTrunFilePath = Path.Combine(Config.DbfLookUpDir, $"{dbfFileName}.dbf");
                     File.Move(dbfFile.FullName, newTrunFilePath);
-                    File.Delete(dbfFile.FullName);
+                } else
+                {
+                    File.Move(dbfFile.FullName, Path.Combine(Config.DbfLookUpDir, dbfFile.Name));
                 }
-                string lookedUpDbf = Path.Combine(Config.DbfLookUpDir, dbfFile.Name); 
-                File.Move(dbfFile.FullName, lookedUpDbf);
             }
-            //FitDbf(package);
-            //Extract.Process(Dtos);
-            //Dtos.Clear();
         }
 
-        //private void FitDbf(FileInfo dbf)
-        //{
-        //    foreach (FileInfo dbfFile in GetDbfs(Config.DbfLookUpDir))
-        //    {
-        //        string dbfFileName = dbfFile.Name.Replace(".dbf", string.Empty);
-        //        string tableType = string.Empty;
-        //        if (dbfFileName.Length > 8)
-        //        {
-        //            dbfFileName = dbfFileName.Substring(0, dbfFileName.LastIndexOf("_"));
-        //            tableType = RetrieveTypeFromName(dbfFileName);
-        //            string newTrunFilePath = Path.Combine(Config.DbfLookUpDir, $"{dbfFileName}.dbf");
-        //            File.Move(dbfFile.FullName, newTrunFilePath);
-        //            File.Delete(dbfFile.FullName);
-        //        }
-        //        if (tableType.Equals(string.Empty)) tableType = RetrieveTypeFromName(dbfFileName);
-        //        if (NeedSync(dbfFile.Name, Impersonation.GetImpersonateTable(tableType)))
-        //        {
-        //            Dtos.Add(new ExtractionDto
-        //            {
-        //                DbfName = dbfFile.Name,
-        //                TableName = dbfFileName,
-        //                Package = package,
-        //                TableType = tableType
-        //            });
-        //        } else
-        //        {
-        //            Log.Accept(new Execution($"No need to sync {dbfFile.Name}, " +
-        //                $"it has already handled or ignored",
-        //                LoggingType.Info));
-        //        }
-        //    }
-        //}
+        private void FillExtractionDtos(string package)
+        {
+            foreach (FileInfo dbfFile in GetDbfs(Config.DbfLookUpDir))
+            {
+                string dbfFileName = dbfFile.Name.Replace(".dbf", string.Empty);
+                string tableType = RetrieveTypeFromName(dbfFileName);
+                if (NeedSync(dbfFile.Name, Impersonation.GetImpersonateTable(tableType)))
+                {
+                    Dtos.Add(new ExtractionDto
+                    {
+                        DbfName = dbfFile.Name,
+                        TableName = dbfFileName,
+                        Package = package,
+                        TableType = tableType
+                    });
+                }
+                else
+                {
+                    Log.Accept(new Execution($"No need to sync {dbfFile.Name}, " +
+                        $"it has already handled or ignored",
+                        LoggingType.Info));
+                }
+            }
+        }
 
         private bool NeedSync(string dbf, TableInfo info)
         {
@@ -187,6 +178,12 @@ namespace DbfProcessor.Core
             }
             if (Regex.IsMatch(table, @"^\S*_")) return table.Substring(0, table.IndexOf("_"));
             throw new ExchangeException($"Empty table type on [{table}]");
+        }
+
+        private static void CleanLookUp()
+        {
+            foreach (var file in GetDbfs(Config.DbfLookUpDir))
+                File.Delete(file.FullName);
         }
 
         private static FileInfo[] GetDbfs(string path)
