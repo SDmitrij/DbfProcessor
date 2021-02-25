@@ -27,7 +27,7 @@ namespace DbfProcessor.Core.Storage
       
         public Interaction() => _queryBuild = new QueryBuild();
        
-        public void Take(ICollection<SharedParent> parents)
+        public void Process(ICollection<SharedParent> parents)
         {
             if (parents.Count == 0) return;
             try
