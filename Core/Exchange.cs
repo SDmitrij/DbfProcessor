@@ -47,8 +47,8 @@ namespace DbfProcessor.Core
                 Partition partition = new Partition(ExchangeDirInfo.GetFiles("*.zip"));
                 while (partition.HasNext)
                 {
-                    ProcessZips(partition.Get());
-                    Interaction.Take(Extract.GetParents());
+                    ProcessPackages(partition.Get());
+                    Interaction.Process(Extract.GetParents());
                     Extract.Clear();
                 }
 
@@ -75,24 +75,21 @@ namespace DbfProcessor.Core
                 throw new ExchangeException("Exchange directory is empty");
         }
 
-        private void ProcessZips(FileInfo[] parts)
+        private void ProcessPackages(FileInfo[] parts)
         {
             foreach (FileInfo file in parts)
             {
-                string currUnzip = Path.Combine(Config.ExchangeDirectory,
+                string currUnzip = Path.Combine(Config.DbfLookUpDir,
                     $"{file.Name.Replace(".zip", string.Empty)}");
 
                 if (!Directory.Exists(currUnzip))
                     ZipFile.ExtractToDirectory(Path.Combine(Config.ExchangeDirectory, file.Name), currUnzip);
-
-                DirectoryInfo currUnzipDirInfo = new DirectoryInfo(currUnzip);
-                string newUnzipPath = Path.Combine(Config.DbfLookUpDir, currUnzipDirInfo.Name);
-                currUnzipDirInfo.MoveTo(newUnzipPath);
-                CopyToLookUp(currUnzipDirInfo.FullName);
-                FillExtractionDtos(currUnzipDirInfo.FullName);
+                
+                CopyToLookUp(currUnzip);
+                FillExtractionDtos(currUnzip);
                 Extract.Process(Dtos);
                 Dtos.Clear();
-                Directory.Delete(newUnzipPath, true);
+                Directory.Delete(currUnzip, true);
                 CleanLookUp();
             }
         }
