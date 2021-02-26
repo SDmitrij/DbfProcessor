@@ -20,10 +20,9 @@ namespace DbfProcessor.Core.Storage
         private readonly QueryBuild _queryBuild;
         #endregion
         #region private properties
-        private Impersonation Impersonation => Impersonation.GetInstance();
-        private Config Config => ConfigInstance.GetInstance().Config();
-        private Logging Log => Logging.GetLogging();
-        private QueryBuild QueryBuild => _queryBuild;
+        private static Impersonation Impersonation => Impersonation.GetInstance();
+        private static Config Config => ConfigInstance.GetInstance().Config();
+        private static Logging Log => Logging.GetLogging();
         #endregion
       
         public Interaction() => _queryBuild = new QueryBuild();
@@ -114,13 +113,9 @@ namespace DbfProcessor.Core.Storage
             {
                 _parent = parent;
                 _tableInfo = Impersonation.GetImpersonateTable(_parent.TableType);
-
-                QueryBuild.Build(_parent);
+                _queryBuild.Build(_parent);
                 TableSeed();
-
-                if (_tableInfo.UniqueColumns.Count > 0) 
-                    ApplyIndex();
-
+                if (_tableInfo.UniqueColumns.Count > 0) ApplyIndex();
                 BulkCopy();
             }
         }
@@ -161,7 +156,8 @@ namespace DbfProcessor.Core.Storage
                     BulkExecute(child);
                     ExecuteOnly(execQuery(child, true));
                     Log.Accept(new Bulk($"Bulk successed for table in file: {child.FileName}"));
-                } catch (Exception e)
+                } 
+                catch (Exception e)
                 {
                     ExecuteOnly(execQuery(child, false));
                     Log.Accept(new Bulk($"Bulk failed for table in file: {child.FileName}", LoggingType.Error));
@@ -197,7 +193,8 @@ namespace DbfProcessor.Core.Storage
                     CommandTimeout = 0
                 };
                 command.ExecuteNonQuery();
-            } catch (Exception e)
+            } 
+            catch (Exception e)
             {
                 Log.Accept(new Execution(e.Message));
                 Log.Accept(new Sql(new Query { QueryBody = sql }));

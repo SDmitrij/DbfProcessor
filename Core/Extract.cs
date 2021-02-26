@@ -25,6 +25,8 @@ namespace DbfProcessor.Core
 
         public void Process(ICollection<Extraction> extractionModels)
         {
+            if (extractionModels.Count == 0)
+                throw new ExchangeException("Empty extraction models, problem with exchange");
             foreach (Extraction model in extractionModels)
             {
                 try
@@ -50,7 +52,7 @@ namespace DbfProcessor.Core
             return _parents;
         }
 
-        public void Clear() => _parents.Clear();
+        public void ClearParents() => _parents.Clear();
 
         #region private
         private void FillShareds()

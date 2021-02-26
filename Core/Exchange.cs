@@ -43,7 +43,7 @@ namespace DbfProcessor.Core
             {
                 ProcessPackages(partition.Get());
                 _interaction.Process(_extract.GetParents());
-                _extract.Clear();
+                _extract.ClearParents();
             }
             _interaction.CreateProcedures();
             _interaction.Stage();
@@ -103,7 +103,8 @@ namespace DbfProcessor.Core
                     dbfFileName = dbfFileName.Substring(0, dbfFileName.LastIndexOf("_"));
                     string newTrunFilePath = Path.Combine(Config.DbfLookUpDir, $"{dbfFileName}.dbf");
                     File.Move(dbfFile.FullName, newTrunFilePath);
-                } else
+                } 
+                else
                 {
                     File.Move(dbfFile.FullName, Path.Combine(Config.DbfLookUpDir, dbfFile.Name));
                 }

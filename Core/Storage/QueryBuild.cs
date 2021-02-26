@@ -15,8 +15,8 @@ namespace DbfProcessor.Core.Storage
         private TableInfo _tableInfo;
         #endregion
         #region private properties
-        private Logging Log => Logging.GetLogging();
-        private Impersonation Impersonation => Impersonation.GetInstance();
+        private static Logging Log => Logging.GetLogging();
+        private static Impersonation Impersonation => Impersonation.GetInstance();
         #endregion
         public void Build(SharedParent parent)
         {
