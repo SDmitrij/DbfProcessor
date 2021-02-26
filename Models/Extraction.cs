@@ -1,6 +1,6 @@
-﻿namespace DbfProcessor.Models.Dtos
+﻿namespace DbfProcessor.Models
 {
-    public class ExtractionDto
+    public class Extraction
     {
         public string DbfName { get; set; }
         public string TableName { get; set; }

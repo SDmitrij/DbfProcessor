@@ -17,7 +17,6 @@ namespace DbfProcessor.Models
     {
         private ImpersonationDict _impersonationDict;
         private static Impersonation _impersonation;
-
         private static Logging Log => Logging.GetLogging();
 
         private Impersonation()
@@ -28,6 +27,7 @@ namespace DbfProcessor.Models
             } catch (Exception e)
             {
                 Log.Accept(new Execution(e.Message));
+                throw;
             }
         }
 

@@ -26,9 +26,11 @@ namespace DbfProcessor.Models
             try
             {
                 Deserialize();
-            } catch (Exception e)
+            } 
+            catch (Exception e)
             {
                 Log.Accept(new Execution(e.Message));
+                throw;
             }
         }
 

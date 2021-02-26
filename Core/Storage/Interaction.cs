@@ -1,4 +1,5 @@
-﻿using DbfProcessor.Models;
+﻿using DbfProcessor.Core.Exceptions;
+using DbfProcessor.Models;
 using DbfProcessor.Models.Infrastructure;
 using DbfProcessor.Out;
 using DbfProcessor.Out.Concrete;
@@ -34,7 +35,7 @@ namespace DbfProcessor.Core.Storage
             {
                 _parents = parents;
                 Loop();
-            }  catch (Exception e)
+            }  catch (InteractionException e)
             {
                 Log.Accept(new Execution(e.Message));
             }
@@ -45,7 +46,8 @@ namespace DbfProcessor.Core.Storage
             try
             {
                 BaseSeed();
-            } catch (Exception e)
+            }
+            catch (InteractionException e)
             {
                 Log.Accept(new Execution(e.Message));
             }
@@ -74,15 +76,15 @@ namespace DbfProcessor.Core.Storage
         {
             string sqlStageDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Sql", "Stage");
             if (!Directory.Exists(sqlStageDir))
-                throw new Exception("Directory with stage sql does not exists!");
+                throw new InteractionException("Directory with stage sql does not exists!");
             DirectoryInfo sqlStageDirInf = new DirectoryInfo(sqlStageDir);
             FileInfo stageFile = sqlStageDirInf.GetFiles("*.sql")
                 .Where(f => f.Name.Replace(".sql", string.Empty).Equals("Stage")).FirstOrDefault();
             if (stageFile is null)
-                throw new Exception("Can't find stage sql file");
+                throw new InteractionException("Can't find stage sql file");
             string sqlStageQuery = File.ReadAllText(stageFile.FullName);
             if (sqlStageQuery.Equals(string.Empty))
-                throw new Exception($"Stage sql file {stageFile.Name} does not have any content");
+                throw new InteractionException($"Stage sql file {stageFile.Name} does not have any content");
             ExecuteOnly(sqlStageQuery);
         }
 
@@ -90,17 +92,17 @@ namespace DbfProcessor.Core.Storage
         {
             string procsSqlDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Sql", "Procs");
             if (!Directory.Exists(procsSqlDir))
-                throw new Exception("Directory with sql procedures does not exists!");
+                throw new InteractionException("Directory with sql procedures does not exists!");
             DirectoryInfo procsSqlDirInf = new DirectoryInfo(procsSqlDir);
             FileInfo[] sqlProcedureFiles = procsSqlDirInf.GetFiles("*.sql");
             if (sqlProcedureFiles.Length == 0)
-                throw new Exception("Sql procs dir does not conatains any sql file");
+                throw new InteractionException("Sql procs dir does not conatains any sql file");
 
             foreach (FileInfo sqlFile in sqlProcedureFiles)
             {
                 string sqlQuery = File.ReadAllText(sqlFile.FullName);
                 if (sqlQuery.Equals(string.Empty))
-                    throw new Exception($"Sql file's: {sqlFile.Name} content is empty");
+                    throw new InteractionException($"Sql file's: {sqlFile.Name} content is empty");
                 ExecuteOnly(sqlQuery);
             }
         }
@@ -127,7 +129,7 @@ namespace DbfProcessor.Core.Storage
         {
             string baseSqlDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Sql", "Base");
             if (!Directory.Exists(baseSqlDir))
-                throw new Exception("Directory with base sql does not exists!");
+                throw new InteractionException("Directory with base sql does not exists!");
 
             DirectoryInfo sqlDirInfo = new DirectoryInfo(baseSqlDir);
             FileInfo baseSqlFile = sqlDirInfo
@@ -137,11 +139,11 @@ namespace DbfProcessor.Core.Storage
                 .FirstOrDefault();
 
             if (baseSqlFile is null)
-                throw new Exception("Can't find sql file with base migration");
+                throw new InteractionException("Can't find sql file with base migration");
             string baseSql = File.ReadAllText(baseSqlFile.FullName);
 
             if (baseSql.Equals(string.Empty))
-                throw new Exception($"Base sql file {baseSqlFile.FullName} " +
+                throw new InteractionException($"Base sql file {baseSqlFile.FullName} " +
                     "does not have any content");
             ExecuteOnly(baseSql);
         }
@@ -164,6 +166,7 @@ namespace DbfProcessor.Core.Storage
                     ExecuteOnly(execQuery(child, false));
                     Log.Accept(new Bulk($"Bulk failed for table in file: {child.FileName}", LoggingType.Error));
                     Log.Accept(new Execution(e.Message));
+                    throw;
                 }
             }
         }
@@ -179,11 +182,11 @@ namespace DbfProcessor.Core.Storage
             Query indexQuery = _parent.SeedQueries
                 .Where(q => q.QueryType == QueryType.Index).FirstOrDefault();
             if (indexQuery is null) 
-                throw new Exception($"Can't get index query for table {_tableInfo.TableName}");
+                throw new InteractionException($"Can't get index query for table {_tableInfo.TableName}");
             ExecuteOnly(indexQuery.QueryBody);
         }
 
-        private int ExecuteOnly(string sql)
+        private void ExecuteOnly(string sql)
         {
             try
             {
@@ -193,13 +196,13 @@ namespace DbfProcessor.Core.Storage
                 {
                     CommandTimeout = 0
                 };
-                return command.ExecuteNonQuery();
+                command.ExecuteNonQuery();
             } catch (Exception e)
             {
                 Log.Accept(new Execution(e.Message));
                 Log.Accept(new Sql(new Query { QueryBody = sql }));
+                throw;
             }
-            return 0;
         }
 
         private void BulkExecute(SharedChild child)

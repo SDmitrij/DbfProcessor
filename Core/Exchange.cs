@@ -1,7 +1,6 @@
 ﻿using DbfProcessor.Core.Exceptions;
 using DbfProcessor.Core.Storage;
 using DbfProcessor.Models;
-using DbfProcessor.Models.Dtos;
 using DbfProcessor.Models.Infrastructure;
 using DbfProcessor.Out;
 using DbfProcessor.Out.Concrete;
@@ -16,97 +15,76 @@ namespace DbfProcessor.Core
     public class Exchange
     {
         #region private fields
+        private string _currentPackage;
+        private static DirectoryInfo _exchangeDir;
         private readonly Extract _extract;
         private readonly Interaction _interaction;
-        private readonly ICollection<ExtractionDto> _extractionDtos;
+        private readonly ICollection<Extraction> _extractionDtos;
         #endregion
         #region private properties
         private static Logging Log => Logging.GetLogging();
         private static Config Config => ConfigInstance.GetInstance().Config();
-        private static DirectoryInfo ExchangeDirInfo => new DirectoryInfo(Config.ExchangeDirectory);
-        private Extract Extract => _extract;
-        private Interaction Interaction => _interaction;
-        private Impersonation Impersonation => Impersonation.GetInstance();
-        private ICollection<ExtractionDto> Dtos => _extractionDtos;
+        private static Impersonation Impersonation => Impersonation.GetInstance();
         #endregion
         public Exchange()
         {
+            _exchangeDir = new DirectoryInfo(Config.ExchangeDirectory);
             _extract = new Extract();
-            _extractionDtos = new List<ExtractionDto>();
+            _extractionDtos = new List<Extraction>();
             _interaction = new Interaction();
         }
 
         public void Run()
         {
-            try
+            _interaction.ApplyBase();
+            ProcessOrphans();
+            Partition partition = new Partition(_exchangeDir.GetFiles("*.zip"));
+            while (partition.HasNext)
             {
-                CheckInfrastructure();
-                Interaction.ApplyBase();
-                ProcessOrphans();
-
-                Partition partition = new Partition(ExchangeDirInfo.GetFiles("*.zip"));
-                while (partition.HasNext)
-                {
-                    ProcessPackages(partition.Get());
-                    Interaction.Process(Extract.GetParents());
-                    Extract.Clear();
-                }
-
-                Interaction.CreateProcedures();
-                Interaction.Stage();
+                ProcessPackages(partition.Get());
+                _interaction.Process(_extract.GetParents());
+                _extract.Clear();
             }
-            catch (ExchangeException e)
-            {
-                Log.Accept(new Execution(e.Message));
-                throw;
-            }
+            _interaction.CreateProcedures();
+            _interaction.Stage();
         }
         #region private
-        private void CheckInfrastructure()
-        {
-            if (!Directory.Exists(Config.ExchangeDirectory))
-                throw new ExchangeException("Directory that keeps dbfs from exchange is not exists");
-
-            if (!Directory.Exists(Config.DbfLookUpDir))
-                throw new ExchangeException("Directory that handle dbfs is not exists");
-
-            if (ExchangeDirInfo.GetFiles("*.zip").Length == 0 
-                && ExchangeDirInfo.GetFiles("*.dbf").Length == 0)
-                throw new ExchangeException("Exchange directory is empty");
-        }
-
         private void ProcessPackages(FileInfo[] parts)
         {
             foreach (FileInfo file in parts)
             {
-                string currUnzip = Path.Combine(Config.DbfLookUpDir,
-                    $"{file.Name.Replace(".zip", string.Empty)}");
-
-                if (!Directory.Exists(currUnzip))
-                    ZipFile.ExtractToDirectory(Path.Combine(Config.ExchangeDirectory, file.Name), currUnzip);
+                _currentPackage = Path.Combine(Config.DbfLookUpDir, $"{file.Name.Replace(".zip", string.Empty)}");
+                if (!Directory.Exists(_currentPackage))
+                    ZipFile.ExtractToDirectory(Path.Combine(Config.ExchangeDirectory, file.Name), _currentPackage);
                 
-                CopyToLookUp(currUnzip);
-                FillExtractionDtos(currUnzip);
-                Extract.Process(Dtos);
-                Dtos.Clear();
-                Directory.Delete(currUnzip, true);
-                CleanLookUp();
+                PrepareDbfs();
+                FillExtractionDtos();
+                _extract.Process(_extractionDtos);
+                TideUp();
             }
+        }
+
+        private void TideUp()
+        {
+            _extractionDtos.Clear();
+            Directory.Delete(_currentPackage, true);
+            foreach (var file in GetDbfs(Config.DbfLookUpDir))
+                File.Delete(file.FullName);
         }
 
         private void ProcessOrphans()
         {
-            if (ExchangeDirInfo.GetFiles("*.dbf").Length == 0)
+            if (_exchangeDir.GetFiles("*.dbf").Length == 0)
             {
                 Log.Accept(new Execution($"There are no any orphans dbfs in {Config.ExchangeDirectory}", 
                     LoggingType.Info));
                 return;
             }
             string date = DateTime.Now.ToString("yyyy-dd-M--HH-mm-ss");
-            string orphansDirPath = Path.Combine(ExchangeDirInfo.FullName, $"{date}_orphans"); 
+            string orphansDirPath = Path.Combine(_exchangeDir.FullName, $"{date}_orphans"); 
 
             Directory.CreateDirectory(orphansDirPath);
-            foreach (FileInfo file in GetDbfs(ExchangeDirInfo.FullName))
+            foreach (FileInfo file in GetDbfs(_exchangeDir.FullName))
             {
                 File.Copy(file.FullName, Path.Combine(orphansDirPath, file.Name), true);
                 File.Delete(file.FullName);
@@ -115,9 +93,9 @@ namespace DbfProcessor.Core
             Directory.Delete(orphansDirPath, true);
         }
 
-        private void CopyToLookUp(string package)
+        private void PrepareDbfs()
         {
-            foreach (FileInfo dbfFile in GetDbfs(package))
+            foreach (FileInfo dbfFile in GetDbfs(_currentPackage))
             {
                 string dbfFileName = dbfFile.Name.Replace(".dbf", string.Empty);
                 if (dbfFileName.Length > 8)
@@ -132,7 +110,7 @@ namespace DbfProcessor.Core
             }
         }
 
-        private void FillExtractionDtos(string package)
+        private void FillExtractionDtos()
         {
             foreach (FileInfo dbfFile in GetDbfs(Config.DbfLookUpDir))
             {
@@ -140,11 +118,11 @@ namespace DbfProcessor.Core
                 string tableType = RetrieveTypeFromName(dbfFileName);
                 if (NeedSync(dbfFile.Name, Impersonation.GetImpersonateTable(tableType)))
                 {
-                    Dtos.Add(new ExtractionDto
+                    _extractionDtos.Add(new Extraction
                     {
                         DbfName = dbfFile.Name,
                         TableName = dbfFileName,
-                        Package = package,
+                        Package = _currentPackage,
                         TableType = tableType
                     });
                 }
@@ -160,10 +138,8 @@ namespace DbfProcessor.Core
         private bool NeedSync(string dbf, TableInfo info)
         {
             if (info.Ignore) return false;
-            if (Interaction.GetSyncInfo(dbf))
-                return false;
-            else
-                return true;
+            if (_interaction.GetSyncInfo(dbf)) return false;
+            else return true;
         }
 
         private static string RetrieveTypeFromName(string table)
@@ -175,12 +151,6 @@ namespace DbfProcessor.Core
             }
             if (Regex.IsMatch(table, @"^\S*_")) return table.Substring(0, table.IndexOf("_"));
             throw new ExchangeException($"Empty table type on [{table}]");
-        }
-
-        private static void CleanLookUp()
-        {
-            foreach (var file in GetDbfs(Config.DbfLookUpDir))
-                File.Delete(file.FullName);
         }
 
         private static FileInfo[] GetDbfs(string path)

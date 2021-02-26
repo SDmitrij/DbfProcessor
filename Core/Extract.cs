@@ -1,6 +1,5 @@
 ﻿using DbfProcessor.Core.Exceptions;
 using DbfProcessor.Models;
-using DbfProcessor.Models.Dtos;
 using DbfProcessor.Models.Infrastructure;
 using DbfProcessor.Out;
 using DbfProcessor.Out.Concrete;
@@ -15,22 +14,23 @@ namespace DbfProcessor.Core
     {
         #region private fields
         private readonly ICollection<SharedParent> _parents;
+        private Extraction _extractionModel;
         #endregion
         #region private properties
         private static Logging Log => Logging.GetLogging();
         private static Config Config => ConfigInstance.GetInstance().Config();
         private static Impersonation Impersonation => Impersonation.GetInstance();
-        private ICollection<SharedParent> Parents => _parents;
         #endregion
         public Extract() => _parents = new List<SharedParent>();
 
-        public void Process(ICollection<ExtractionDto> dtos)
+        public void Process(ICollection<Extraction> extractionModels)
         {
-            foreach (ExtractionDto dto in dtos)
+            foreach (Extraction model in extractionModels)
             {
                 try
                 {
-                    FillShareds(dto);
+                    _extractionModel = model;
+                    FillShareds();
                 }
                 catch (ExtractionException e)
                 {
@@ -42,73 +42,73 @@ namespace DbfProcessor.Core
 
         public ICollection<SharedParent> GetParents()
         {
-            if (Parents.Count == 0)
+            if (_parents.Count == 0)
             {
                 Log.Accept(new Execution("There is nothing to sync", LoggingType.Info));
                 return new List<SharedParent>();
             }
-            return Parents;
+            return _parents;
         }
 
-        public void Clear() => Parents.Clear();
+        public void Clear() => _parents.Clear();
 
         #region private
-        private void FillShareds(ExtractionDto dto)
+        private void FillShareds()
         {
-            TableInfo tableInfo = Impersonation.GetImpersonateTable(dto.TableType);
-            DataTable dbfData = ReceiveData(dto.TableName, dto.TableType);
+            TableInfo tableInfo = Impersonation.GetImpersonateTable(_extractionModel.TableType);
+            DataTable dbfData = ReceiveData();
             if (tableInfo.CustomColumns.Count > 0)
             {
-                AddCustomColumns(dbfData, tableInfo);
-                RetrieveShopNum(dbfData, dto.TableName);
+                AddCustomColumns(dbfData);
+                RetrieveShopNum(dbfData);
             }
-            if (!Parents.Any(t => t.TableType == dto.TableType))
+            if (!_parents.Any(t => t.TableType == _extractionModel.TableType))
             {
-                Parents.Add(new SharedParent
+                _parents.Add(new SharedParent
                 {
-                    TableType = dto.TableType,
+                    TableType = _extractionModel.TableType,
                     SharedChilds = new List<SharedChild>()
                 });
             }
-            SharedParent parent = Parents.Where(t => t.TableType.Equals(dto.TableType))
+            SharedParent parent = _parents.Where(t => t.TableType.Equals(_extractionModel.TableType))
                 .FirstOrDefault();
             if (parent is null) 
-                throw new ExtractionException($"Can't find parent table with type, {dto.FullDescription}");
+                throw new ExtractionException($"Can't find parent table with type, {_extractionModel.FullDescription}");
             SharedChild child = new SharedChild
             {
-                FileName = dto.DbfName,
-                PackageName = dto.Package,
+                FileName = _extractionModel.DbfName,
+                PackageName = _extractionModel.Package,
                 Rows = dbfData.Select()
             };
             parent.SharedChilds.Add(child);
         }
 
-        private DataTable ReceiveData(string dbfTable, string type)
+        private DataTable ReceiveData()
         {
             using OdbcConnection connection = new OdbcConnection(Config.DbfOdbcConn);
             connection.Open();
             OdbcCommand command = connection.CreateCommand();
             DataTable dataTable = new DataTable();
-            TableInfo imperTable = Impersonation.GetImpersonateTable(type);
+            TableInfo imperTable = Impersonation.GetImpersonateTable(_extractionModel.TableType);
             string toSelect = string.Join(",", imperTable.SqlColumnTypes.Keys
                 .Except(imperTable.CustomColumns).ToList());
 
-            command.CommandText = $"SELECT {toSelect} FROM {dbfTable}";
+            command.CommandText = $"SELECT {toSelect} FROM {_extractionModel.TableName}";
             dataTable.Load(command.ExecuteReader());
             return dataTable;
         }
-        #endregion
-        #region static
-        private static void AddCustomColumns(DataTable dataTable, TableInfo tableInfo)
+
+        private void AddCustomColumns(DataTable dataTable)
         {
-            foreach (string customCol in tableInfo.CustomColumns) 
+            TableInfo tableInfo = Impersonation.GetImpersonateTable(_extractionModel.TableType);
+            foreach (string customCol in tableInfo.CustomColumns)
                 dataTable.Columns.Add(customCol, typeof(int));
         }
 
-        private static void RetrieveShopNum(DataTable dataTable, string table)
+        private void RetrieveShopNum(DataTable dataTable)
         {
-            if (!int.TryParse(table.Substring(0, table.IndexOf("_")), out int shopNum))
-                throw new ExtractionException($"Can't parse shop number from dbf name: {table}");
+            if (!int.TryParse(_extractionModel.TableName.Substring(0, _extractionModel.TableName.IndexOf("_")), out int shopNum))
+                throw new ExtractionException($"Can't parse shop number: {_extractionModel.FullDescription}");
             foreach (DataRow row in dataTable.Rows)
                 row[dataTable.Columns.Count - 1] = shopNum;
         }
