@@ -1,5 +1,6 @@
 ﻿using DbfProcessor.Core.Exceptions;
 using DbfProcessor.Models;
+using DbfProcessor.Models.Dtos;
 using DbfProcessor.Models.Infrastructure;
 using DbfProcessor.Out;
 using DbfProcessor.Out.Concrete;
