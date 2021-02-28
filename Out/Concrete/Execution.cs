@@ -16,10 +16,8 @@ namespace DbfProcessor.Out.Concrete
 
         public string GetFile()
         {
-            if (_type == LoggingType.Info) 
-                return "info.txt";
-            if (_type == LoggingType.Error) 
-                return "error.txt";
+            if (_type == LoggingType.Info) return "exec_info.txt";
+            if (_type == LoggingType.Error) return "exec_error.txt";
             return string.Empty;
         }
         public string GetResult() => $"[{DateTime.Now}]: {_result}\n";

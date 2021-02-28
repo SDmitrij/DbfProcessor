@@ -1,6 +1,5 @@
 ﻿using DbfProcessor.Core.Exceptions;
 using DbfProcessor.Models;
-using DbfProcessor.Models.Dtos;
 using DbfProcessor.Models.Infrastructure;
 using DbfProcessor.Out;
 using DbfProcessor.Out.Concrete;
@@ -26,8 +25,7 @@ namespace DbfProcessor.Core
 
         public void Process(ICollection<Extraction> extractionModels)
         {
-            if (extractionModels.Count == 0)
-                throw new ExchangeException("Empty extraction models, problem with exchange");
+            if (extractionModels.Count == 0) return;
             foreach (Extraction model in extractionModels)
             {
                 try
