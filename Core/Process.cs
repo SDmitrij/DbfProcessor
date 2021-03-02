@@ -8,7 +8,7 @@ namespace DbfProcessor.Core
 {
     public static class Process
     {
-        private static Config Config => ConfigInstance.GetInstance().Config();
+        private static Config Config => ConfigInstance.GetInstance().Config;
         private static Logging Log => Logging.GetLogging();
 
         public static void Run()

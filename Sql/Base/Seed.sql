@@ -28,13 +28,17 @@ BEGIN
 END
 EXEC('CREATE FUNCTION [dbo].[fn_NotBulkedDbfs]
 (
-	@dbfName CHAR(50)
+	@dbfName CHAR(50),
+	@packName CHAR(50)
 )
 RETURNS INT
 AS
 BEGIN
 	DECLARE @res INT
-	IF EXISTS (SELECT [Id] FROM [service].[sync_info] WHERE [DbfName] = @dbfName AND [Bulked] = 1)
+	IF EXISTS (SELECT [Id] FROM [service].[sync_info] WHERE 
+	[DbfName] = @dbfName
+	AND [PackName] = @packName 
+	AND [Bulked] = 1)
 		SET @res = 1;
 	ELSE
 		SET @res = 0;

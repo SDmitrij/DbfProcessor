@@ -24,7 +24,7 @@ namespace DbfProcessor.Core.Storage
             {
                 _parent = parent;
                 _parent.SeedQueries = new List<Query>();
-                _tableInfo = Impersonation.GetImpersonateTable(_parent.TableType);
+                _tableInfo = Impersonation.Get(_parent.TableType);
 
                 Create();
                 if (_tableInfo.UniqueColumns.Count > 0) Index();

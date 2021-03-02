@@ -6,6 +6,7 @@ using DbfProcessor.Out.Concrete;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Odbc;
+using System.IO;
 using System.Linq;
 
 namespace DbfProcessor.Core
@@ -15,10 +16,12 @@ namespace DbfProcessor.Core
         #region private fields
         private readonly ICollection<SharedParent> _parents;
         private Extraction _extractionModel;
+        private DataTable _dbfData;
+        private TableInfo _info;
         #endregion
         #region private properties
         private static Logging Log => Logging.GetLogging();
-        private static Config Config => ConfigInstance.GetInstance().Config();
+        private static Config Config => ConfigInstance.GetInstance().Config;
         private static Impersonation Impersonation => Impersonation.GetInstance();
         #endregion
         public Extract() => _parents = new List<SharedParent>();
@@ -26,11 +29,12 @@ namespace DbfProcessor.Core
         public void Process(ICollection<Extraction> extractionModels)
         {
             if (extractionModels.Count == 0) return;
-            foreach (Extraction model in extractionModels)
+            foreach (Extraction extractionModel in extractionModels)
             {
+                _extractionModel = extractionModel;
+                _info = Impersonation.Get(_extractionModel.TableType);
                 try
                 {
-                    _extractionModel = model;
                     FillShareds();
                 }
                 catch (ExtractionException e)
@@ -56,12 +60,13 @@ namespace DbfProcessor.Core
         #region private
         private void FillShareds()
         {
-            TableInfo tableInfo = Impersonation.GetImpersonateTable(_extractionModel.TableType);
-            DataTable dbfData = ReceiveData();
-            if (tableInfo.CustomColumns.Count > 0)
+            if (!File.Exists(Path.Combine(_extractionModel.Package, _extractionModel.DbfName)))
+                throw new ExtractionException($"Can't find dbf file to receive data on: {_extractionModel.FullDescription}");
+            _dbfData = ReceiveData();
+            if (_info.CustomColumns.Count > 0)
             {
-                AddCustomColumns(dbfData);
-                RetrieveShopNum(dbfData);
+                AddCustomColumns();
+                RetrieveShopNum();
             }
             if (!_parents.Any(t => t.TableType == _extractionModel.TableType))
             {
@@ -79,7 +84,7 @@ namespace DbfProcessor.Core
             {
                 FileName = _extractionModel.DbfName,
                 PackageName = _extractionModel.Package,
-                Rows = dbfData.Select()
+                Rows = _dbfData.Select()
             };
             parent.SharedChilds.Add(child);
         }
@@ -90,28 +95,27 @@ namespace DbfProcessor.Core
             connection.Open();
             OdbcCommand command = connection.CreateCommand();
             DataTable dataTable = new DataTable();
-            TableInfo imperTable = Impersonation.GetImpersonateTable(_extractionModel.TableType);
-            string toSelect = string.Join(",", imperTable.SqlColumnTypes.Keys
-                .Except(imperTable.CustomColumns).ToList());
+           
+            string toSelect = string.Join(",", _info.SqlColumnTypes.Keys
+                .Except(_info.CustomColumns).ToList());
 
             command.CommandText = $"SELECT {toSelect} FROM {_extractionModel.TableName}";
             dataTable.Load(command.ExecuteReader());
             return dataTable;
         }
 
-        private void AddCustomColumns(DataTable dataTable)
+        private void AddCustomColumns()
         {
-            TableInfo tableInfo = Impersonation.GetImpersonateTable(_extractionModel.TableType);
-            foreach (string customCol in tableInfo.CustomColumns)
-                dataTable.Columns.Add(customCol, typeof(int));
+            foreach (string customCol in _info.CustomColumns)
+                _dbfData.Columns.Add(customCol, typeof(int));
         }
 
-        private void RetrieveShopNum(DataTable dataTable)
+        private void RetrieveShopNum()
         {
             if (!int.TryParse(_extractionModel.TableName.Substring(0, _extractionModel.TableName.IndexOf("_")), out int shopNum))
                 throw new ExtractionException($"Can't parse shop number: {_extractionModel.FullDescription}");
-            foreach (DataRow row in dataTable.Rows)
-                row[dataTable.Columns.Count - 1] = shopNum;
+            foreach (DataRow row in _dbfData.Rows)
+                row[_dbfData.Columns.Count - 1] = shopNum;
         }
         #endregion
     }

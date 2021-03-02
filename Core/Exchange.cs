@@ -15,22 +15,22 @@ namespace DbfProcessor.Core
     public class Exchange
     {
         #region private fields
-        private string _currentPackage;
         private static DirectoryInfo _exchangeDir;
+        private string _currentPackage;
         private readonly Extract _extract;
         private readonly Interaction _interaction;
-        private readonly ICollection<Extraction> _extractionDtos;
+        private readonly ICollection<Extraction> _extractionModels;
         #endregion
         #region private properties
         private static Logging Log => Logging.GetLogging();
-        private static Config Config => ConfigInstance.GetInstance().Config();
+        private static Config Config => ConfigInstance.GetInstance().Config;
         private static Impersonation Impersonation => Impersonation.GetInstance();
         #endregion
         public Exchange()
         {
             _exchangeDir = new DirectoryInfo(Config.ExchangeDirectory);
             _extract = new Extract();
-            _extractionDtos = new List<Extraction>();
+            _extractionModels = new List<Extraction>();
             _interaction = new Interaction();
         }
 
@@ -45,8 +45,7 @@ namespace DbfProcessor.Core
                 _interaction.Process(_extract.GetParents());
                 _extract.ClearParents();
             }
-            _interaction.CreateProcedures();
-            _interaction.Stage();
+            _interaction.ApplyStage();
         }
         #region private
         private void ProcessPackages(FileInfo[] parts)
@@ -58,15 +57,15 @@ namespace DbfProcessor.Core
                     ZipFile.ExtractToDirectory(Path.Combine(Config.ExchangeDirectory, file.Name), _currentPackage);
                 
                 PrepareDbfs();
-                FillExtractionDtos();
-                _extract.Process(_extractionDtos);
+                FillExtractionModels();
+                _extract.Process(_extractionModels);
                 TideUp();
             }
         }
 
         private void TideUp()
         {
-            _extractionDtos.Clear();
+            _extractionModels.Clear();
             Directory.Delete(_currentPackage, true);
             foreach (var file in GetDbfs(Config.DbfLookUpDir))
                 File.Delete(file.FullName);
@@ -111,15 +110,15 @@ namespace DbfProcessor.Core
             }
         }
 
-        private void FillExtractionDtos()
+        private void FillExtractionModels()
         {
             foreach (FileInfo dbfFile in GetDbfs(Config.DbfLookUpDir))
             {
                 string dbfFileName = dbfFile.Name.Replace(".dbf", string.Empty);
                 string tableType = RetrieveTypeFromName(dbfFileName);
-                if (NeedSync(dbfFile.Name, Impersonation.GetImpersonateTable(tableType)))
+                if (NeedSync(dbfFile.Name, tableType))
                 {
-                    _extractionDtos.Add(new Extraction
+                    _extractionModels.Add(new Extraction
                     {
                         DbfName = dbfFile.Name,
                         TableName = dbfFileName,
@@ -136,10 +135,11 @@ namespace DbfProcessor.Core
             }
         }
 
-        private bool NeedSync(string dbf, TableInfo info)
+        private bool NeedSync(string dbf, string type)
         {
+            TableInfo info = Impersonation.Get(type);
             if (info.Ignore) return false;
-            if (_interaction.GetSyncInfo(dbf)) return false;
+            if (_interaction.GetSyncInfo(dbf, _currentPackage)) return false;
             else return true;
         }
 

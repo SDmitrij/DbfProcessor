@@ -21,7 +21,7 @@ namespace DbfProcessor.Core.Storage
         #endregion
         #region private properties
         private static Impersonation Impersonation => Impersonation.GetInstance();
-        private static Config Config => ConfigInstance.GetInstance().Config();
+        private static Config Config => ConfigInstance.GetInstance().Config;
         private static Logging Log => Logging.GetLogging();
         #endregion
       
@@ -30,13 +30,15 @@ namespace DbfProcessor.Core.Storage
         public void Process(ICollection<SharedParent> parents)
         {
             if (parents.Count == 0) return;
+            _parents = parents;
             try
             {
-                _parents = parents;
                 Loop();
-            }  catch (InteractionException e)
+            }  
+            catch (InteractionException e)
             {
                 Log.Accept(new Execution(e.Message));
+                throw;
             }
         }
 
@@ -49,12 +51,27 @@ namespace DbfProcessor.Core.Storage
             catch (InteractionException e)
             {
                 Log.Accept(new Execution(e.Message));
+                throw;
             }
         }
 
-        public bool GetSyncInfo(string dbfName)
+        public void ApplyStage()
         {
-            string query = $"SELECT [dbo].[fn_NotBulkedDbfs]('{dbfName}')";
+            try
+            {
+                CreateProcedures();
+                Stage();
+            }
+            catch (InteractionException e)
+            {
+                Log.Accept(new Execution(e.Message));
+                throw;
+            }
+        }
+
+        public bool GetSyncInfo(string dbfName, string package)
+        {
+            string query = $"SELECT [dbo].[fn_NotBulkedDbfs]('{dbfName}', '{package}')";
             using SqlConnection connection = new SqlConnection(Config.SqlServerConn);
             connection.Open();
             SqlCommand command = new SqlCommand(query, connection);
@@ -71,7 +88,7 @@ namespace DbfProcessor.Core.Storage
             else return true;
         }
 
-        public void Stage()
+        private void Stage()
         {
             string sqlStageDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Sql", "Stage");
             if (!Directory.Exists(sqlStageDir))
@@ -87,7 +104,7 @@ namespace DbfProcessor.Core.Storage
             ExecuteOnly(sqlStageQuery);
         }
 
-        public void CreateProcedures()
+        private void CreateProcedures()
         {
             string procsSqlDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Sql", "Procs");
             if (!Directory.Exists(procsSqlDir))
@@ -112,7 +129,7 @@ namespace DbfProcessor.Core.Storage
             foreach (SharedParent parent in _parents)
             {
                 _parent = parent;
-                _tableInfo = Impersonation.GetImpersonateTable(_parent.TableType);
+                _tableInfo = Impersonation.Get(_parent.TableType);
                 _queryBuild.Build(_parent);
                 TableSeed();
                 if (_tableInfo.UniqueColumns.Count > 0) ApplyIndex();

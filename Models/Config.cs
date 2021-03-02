@@ -19,6 +19,7 @@ namespace DbfProcessor.Models
     {
         private Config _config;
         private static ConfigInstance _instance;
+        public Config Config => _config;
         private static Logging Log => Logging.GetLogging();
 
         private ConfigInstance()
@@ -47,7 +48,5 @@ namespace DbfProcessor.Models
             if (_instance is null) _instance = new ConfigInstance();
             return _instance;
         }
-
-        public Config Config() => _config;
     }
 }
