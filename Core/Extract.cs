@@ -60,7 +60,7 @@ namespace DbfProcessor.Core
         #region private
         private void FillShareds()
         {
-            if (!File.Exists(Path.Combine(_extractionModel.Package, _extractionModel.DbfName)))
+            if (!File.Exists(Path.Combine(Config.DbfLookUpDir, _extractionModel.DbfName)))
                 throw new ExtractionException($"Can't find dbf file to receive data on: {_extractionModel.FullDescription}");
             _dbfData = ReceiveData();
             if (_info.CustomColumns.Count > 0)

@@ -71,10 +71,12 @@ namespace DbfProcessor.Core.Storage
 
         public bool GetSyncInfo(string dbfName, string package)
         {
-            string query = $"SELECT [dbo].[fn_NotBulkedDbfs]('{dbfName}', '{package}')";
+            string query = "SELECT [dbo].[fn_NotBulkedDbfs](@dbf, @pack)";
             using SqlConnection connection = new SqlConnection(Config.SqlServerConn);
             connection.Open();
             SqlCommand command = new SqlCommand(query, connection);
+            command.Parameters.AddWithValue("@dbf", dbfName);
+            command.Parameters.AddWithValue("@pack", package);
             SqlDataReader reader = command.ExecuteReader();
            
             if (!reader.HasRows)
@@ -88,6 +90,7 @@ namespace DbfProcessor.Core.Storage
             else return true;
         }
 
+        #region private
         private void Stage()
         {
             string sqlStageDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Sql", "Stage");
@@ -101,7 +104,7 @@ namespace DbfProcessor.Core.Storage
             string sqlStageQuery = File.ReadAllText(stageFile.FullName);
             if (sqlStageQuery.Equals(string.Empty))
                 throw new InteractionException($"Stage sql file {stageFile.Name} does not have any content");
-            ExecuteOnly(sqlStageQuery);
+            ExecuteNonParameterized(sqlStageQuery);
         }
 
         private void CreateProcedures()
@@ -119,11 +122,10 @@ namespace DbfProcessor.Core.Storage
                 string sqlQuery = File.ReadAllText(sqlFile.FullName);
                 if (sqlQuery.Equals(string.Empty))
                     throw new InteractionException($"Sql file's: {sqlFile.Name} content is empty");
-                ExecuteOnly(sqlQuery);
+                ExecuteNonParameterized(sqlQuery);
             }
         }
 
-        #region private
         private void Loop()
         {
             foreach (SharedParent parent in _parents)
@@ -157,26 +159,34 @@ namespace DbfProcessor.Core.Storage
             if (baseSql.Equals(string.Empty))
                 throw new InteractionException($"Base sql file {baseSqlFile.FullName} " +
                     "does not have any content");
-            ExecuteOnly(baseSql);
+            ExecuteNonParameterized(baseSql);
         }
 
         private void BulkCopy()
         {
-            static string execQuery(SharedChild child, bool bulked)
-                => $"EXEC [dbo].[sp_InsertSyncInfo] '{child.PackageName.Trim()}', " +
-                $"'{child.FileName.Trim()}', {(bulked ? 1 : 0)};";
+            string sql = "EXEC [dbo].[sp_InsertSyncInfo] @packName, @fileName, @bulked, @timeNow;";
+            static IDictionary<string, object> initParams(string pack, string dbf, byte bulked)
+            {
+                return new Dictionary<string, object>
+                {
+                    { "@packName", pack },
+                    { "@fileName", dbf },
+                    { "@bulked", bulked },
+                    { "@timeNow", DateTime.Now }
+                };
+            }
 
             foreach (SharedChild child in _parent.SharedChilds)
             {
                 try
                 {
                     BulkExecute(child);
-                    ExecuteOnly(execQuery(child, true));
+                    ExecuteParameterized(sql, initParams(child.PackageName, child.FileName, 1));
                     Log.Accept(new Bulk($"Bulk successed for table in file: {child.FileName}"));
                 } 
                 catch (Exception e)
                 {
-                    ExecuteOnly(execQuery(child, false));
+                    ExecuteParameterized(sql, initParams(child.PackageName, child.FileName, 0));
                     Log.Accept(new Bulk($"Bulk failed for table in file: {child.FileName}", LoggingType.Error));
                     Log.Accept(new Execution(e.Message));
                     throw;
@@ -187,7 +197,7 @@ namespace DbfProcessor.Core.Storage
         private void TableSeed()
         {
             foreach (Query query in _parent.SeedQueries.Where(q => q.QueryType == QueryType.Create))
-                ExecuteOnly(query.QueryBody);
+                ExecuteNonParameterized(query.QueryBody);
         }
 
         private void ApplyIndex()
@@ -196,10 +206,10 @@ namespace DbfProcessor.Core.Storage
                 .Where(q => q.QueryType == QueryType.Index).FirstOrDefault();
             if (indexQuery is null) 
                 throw new InteractionException($"Can't get index query for table {_tableInfo.TableName}");
-            ExecuteOnly(indexQuery.QueryBody);
+            ExecuteNonParameterized(indexQuery.QueryBody);
         }
 
-        private void ExecuteOnly(string sql)
+        private void ExecuteNonParameterized(string sql)
         {
             try
             {
@@ -211,6 +221,28 @@ namespace DbfProcessor.Core.Storage
                 };
                 command.ExecuteNonQuery();
             } 
+            catch (Exception e)
+            {
+                Log.Accept(new Execution(e.Message));
+                Log.Accept(new Sql(new Query { QueryBody = sql }));
+                throw;
+            }
+        }
+
+        private void ExecuteParameterized(string sql, IDictionary<string, object> parameters)
+        {
+            try
+            {
+                using SqlConnection connection = new SqlConnection(Config.SqlServerConn);
+                connection.Open();
+                SqlCommand command = new SqlCommand(sql, connection)
+                {
+                    CommandTimeout = 0
+                };
+                foreach (var param in parameters)
+                    command.Parameters.AddWithValue(param.Key, param.Value);
+                command.ExecuteNonQuery();
+            }
             catch (Exception e)
             {
                 Log.Accept(new Execution(e.Message));

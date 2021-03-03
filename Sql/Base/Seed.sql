@@ -15,7 +15,8 @@ BEGIN
 		[Id] INT NOT NULL PRIMARY KEY IDENTITY(1, 1),
 		[PackName] CHAR(50) NOT NULL,
 		[DbfName] CHAR(50) NOT NULL,
-		[Bulked] BIT NOT NULL
+		[Bulked] BIT NOT NULL,
+		[Time] SMALLDATETIME
 	)')
 END
 
@@ -56,18 +57,21 @@ END
 EXEC('CREATE PROCEDURE [dbo].[sp_InsertSyncInfo]
 	@packName CHAR(50),
 	@dbfName CHAR(50),
-	@bulked BIT
+	@bulked BIT,
+	@time SMALLDATETIME
 AS
 BEGIN
 	IF EXISTS (SELECT * FROM [service].[sync_info] WHERE PackName = @packName AND DbfName = @dbfName)
 	BEGIN
 		UPDATE [service].[sync_info]
-		SET [Bulked] = @bulked
+		SET 
+			[Bulked] = @bulked,
+			[Time] = @time
 		WHERE PackName = @packName AND DbfName = @dbfName
 	END
 	ELSE
 	BEGIN
-		INSERT INTO [service].[sync_info] ([PackName], [DbfName], [Bulked])
-		VALUES (@packName, @dbfName, @bulked)
+		INSERT INTO [service].[sync_info] ([PackName], [DbfName], [Bulked], [Time])
+		VALUES (@packName, @dbfName, @bulked, @time)
 	END
 END')
