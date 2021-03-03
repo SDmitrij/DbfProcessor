@@ -13,9 +13,32 @@ namespace DbfProcessor.Out
         }
 
         public void Accept(IResult result)
-            =>
-            File.AppendAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Results",
-                result.GetFile()), result.GetResult());
+        {
+            if (!result.GetFile().Equals(string.Empty))
+                File.AppendAllText(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Results",
+                    result.GetFile()), result.GetResult());
+            ToConsole(result);
+        }
+
+        private void ToConsole(IResult result)
+        {
+            if (result.Type() == LoggingType.Error)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("{0}", result.GetResult());
+                Console.ResetColor();
+                Console.WriteLine("Press any key to stop...");
+                Console.ReadKey();
+                return;
+            }
+            if (result.Type() == LoggingType.Info)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("{0}", result.GetResult());
+                Console.ResetColor();
+                return;
+            }
+        }
 
         public static Logging GetLogging()
         {

@@ -14,6 +14,7 @@ namespace DbfProcessor.Core.Storage
     public class Interaction
     {
         #region private fields
+        private string _currentPackage;
         private SharedParent _parent;
         private TableInfo _tableInfo;
         private ICollection<SharedParent> _parents;
@@ -24,7 +25,6 @@ namespace DbfProcessor.Core.Storage
         private static Config Config => ConfigInstance.GetInstance().Config;
         private static Logging Log => Logging.GetLogging();
         #endregion
-      
         public Interaction() => _queryBuild = new QueryBuild();
        
         public void Process(ICollection<SharedParent> parents)
@@ -85,11 +85,9 @@ namespace DbfProcessor.Core.Storage
                 return false;
             }
             reader.Read();
-            if (reader.IsDBNull(0)) return false;
             if (reader.GetInt32(0) == 0) return false;
             else return true;
         }
-
         #region private
         private void Stage()
         {
@@ -180,14 +178,13 @@ namespace DbfProcessor.Core.Storage
             {
                 try
                 {
+                    _currentPackage = child.PackageName;
                     BulkExecute(child);
                     ExecuteParameterized(sql, initParams(child.PackageName, child.FileName, 1));
-                    Log.Accept(new Bulk($"Bulk successed for table in file: {child.FileName}"));
                 } 
                 catch (Exception e)
                 {
                     ExecuteParameterized(sql, initParams(child.PackageName, child.FileName, 0));
-                    Log.Accept(new Bulk($"Bulk failed for table in file: {child.FileName}", LoggingType.Error));
                     Log.Accept(new Execution(e.Message));
                     throw;
                 }
@@ -255,14 +252,22 @@ namespace DbfProcessor.Core.Storage
         {
             using SqlConnection connection = new SqlConnection(Config.SqlServerConn);
             connection.Open();
-            SqlBulkCopy sqlBulkCopy = new SqlBulkCopy(connection)
+            using SqlBulkCopy sqlBulkCopy = new SqlBulkCopy(connection)
             {
                 DestinationTableName = $"[stage].[{_tableInfo.TableName}]",
                 BatchSize = Config.BatchSize
             };
+            sqlBulkCopy.SqlRowsCopied += new SqlRowsCopiedEventHandler(OnSqlRowsCopied);
+            sqlBulkCopy.NotifyAfter = 50;
             BuildColumnMappings(sqlBulkCopy);
             sqlBulkCopy.WriteToServer(child.Rows);
         }
+
+        private void OnSqlRowsCopied(object sender, SqlRowsCopiedEventArgs e)
+            =>
+            Log.Accept(new Execution(string.Format("\tTable: [{0}], pack: [{1}] copied: {2}",
+                _tableInfo.TableName, _currentPackage, e.RowsCopied), LoggingType.Info));
+        
 
         private void BuildColumnMappings(SqlBulkCopy sqlBulkCopy)
         {

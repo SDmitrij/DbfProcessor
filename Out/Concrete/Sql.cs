@@ -15,7 +15,7 @@ namespace DbfProcessor.Out.Concrete
         public string GetFile()
         {
             if (_type == LoggingType.Error) return "error.sql";
-            if (_type == LoggingType.Info) return "info.sql";
+            if (_type == LoggingType.Info) return string.Empty;
             return string.Empty;
         }
 

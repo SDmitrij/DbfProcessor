@@ -3,8 +3,6 @@
     public enum LoggingType : byte
     {
         Info,
-        Warning,
-        Error,
-        Service
+        Error
     }
 }

@@ -16,7 +16,7 @@ namespace DbfProcessor.Out.Concrete
 
         public string GetFile()
         {
-            if (_type == LoggingType.Info) return "exec_info.txt";
+            if (_type == LoggingType.Info) return string.Empty;
             if (_type == LoggingType.Error) return "exec_error.txt";
             return string.Empty;
         }
