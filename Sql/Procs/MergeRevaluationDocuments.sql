@@ -30,37 +30,45 @@ BEGIN
 	)
 DELETE FROM CTE
 WHERE rnk > 1
+BEGIN TRY
+	BEGIN TRANSACTION
+		MERGE [dbo].[revaluation_documents] AS target
+		USING [stage].[revaluation_documents] AS source
+			ON (target.SHOP_ID = source.SHOP_ID 
+			AND target.DOC_ID = source.DOC_ID
+			AND target.DOC_DATE = source.DOC_DATE
+			AND target.PROD_ID = source.PROD_ID)
+		WHEN MATCHED
+		THEN UPDATE
+			SET
+				QTY = source.QTY,
+				OLD_PRICE = source.OLD_PRICE,
+				NEW_PRICE = source.NEW_PRICE,
+				EVENT = source.EVENT,
+				COMMENT = source.COMMENT,
+				CS = source.CS
 
-	MERGE [dbo].[revaluation_documents] AS target
-	USING [stage].[revaluation_documents] AS source
-		ON (target.SHOP_ID = source.SHOP_ID 
-		AND target.DOC_ID = source.DOC_ID
-		AND target.DOC_DATE = source.DOC_DATE
-		AND target.PROD_ID = source.PROD_ID)
-	WHEN MATCHED
-	THEN UPDATE
-		SET
-			QTY = source.QTY,
-			OLD_PRICE = source.OLD_PRICE,
-			NEW_PRICE = source.NEW_PRICE,
-			EVENT = source.EVENT,
-			COMMENT = source.COMMENT,
-			CS = source.CS
-
-	WHEN NOT MATCHED
-		THEN INSERT 
-			VALUES
-			(
-			   source.[SHOP_ID]
-			  ,source.[DOC_ID]
-			  ,source.[DOC_DATE]
-              ,source.[PROD_ID]
-              ,source.[QTY]
-              ,source.[OLD_PRICE]
-              ,source.[NEW_PRICE]
-              ,source.[EVENT]
-              ,source.[COMMENT]
-              ,source.[CS]
-			);
-TRUNCATE TABLE [stage].[revaluation_documents]
+		WHEN NOT MATCHED
+			THEN INSERT 
+				VALUES
+				(
+				   source.[SHOP_ID]
+				  ,source.[DOC_ID]
+				  ,source.[DOC_DATE]
+				  ,source.[PROD_ID]
+				  ,source.[QTY]
+				  ,source.[OLD_PRICE]
+				  ,source.[NEW_PRICE]
+				  ,source.[EVENT]
+				  ,source.[COMMENT]
+				  ,source.[CS]
+				);
+		TRUNCATE TABLE [stage].[revaluation_documents]
+	COMMIT TRANSACTION
+END TRY
+BEGIN CATCH
+	IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION
+	INSERT INTO [service].[stage_errors] (STAGE_PROC, PROBLEM, DATE_TIME) VALUES (''sp_MergeRevaluationDocuments'',
+		ERROR_MESSAGE(), CURRENT_TIMESTAMP)
+END CATCH
 END')

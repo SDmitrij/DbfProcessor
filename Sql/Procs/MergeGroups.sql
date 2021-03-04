@@ -20,20 +20,28 @@ WITH CTE AS
 	)
 DELETE FROM CTE
 WHERE rnk > 1
-
-	MERGE [dbo].[groups] AS target
-	USING [stage].[groups] AS source
-		ON (target.G_ID = source.G_ID)
-	WHEN NOT MATCHED
-		THEN INSERT 
-			VALUES
-			(
-				source.DATE,
-				source.G_ID,
-				source.G_DIM,
-				source.G_G1_DIM,
-				source.G_G2_DIM,
-				source.G_G3_DIM
-			);
-TRUNCATE TABLE [stage].[groups]
+BEGIN TRY
+	BEGIN TRANSACTION
+		MERGE [dbo].[groups] AS target
+		USING [stage].[groups] AS source
+			ON (target.G_ID = source.G_ID)
+		WHEN NOT MATCHED
+			THEN INSERT 
+				VALUES
+				(
+					source.DATE,
+					source.G_ID,
+					source.G_DIM,
+					source.G_G1_DIM,
+					source.G_G2_DIM,
+					source.G_G3_DIM
+				);
+		TRUNCATE TABLE [stage].[groups]
+	COMMIT TRANSACTION
+END TRY
+BEGIN CATCH
+	IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION
+	INSERT INTO [service].[stage_errors] (STAGE_PROC, PROBLEM, DATE_TIME) VALUES (''sp_MergeGroups'',
+		ERROR_MESSAGE(), CURRENT_TIMESTAMP)
+END CATCH
 END')

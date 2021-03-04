@@ -1,0 +1,62 @@
+﻿IF EXISTS (
+        SELECT type_desc, type
+        FROM sys.procedures WITH(NOLOCK)
+        WHERE NAME = 'sp_MergeDocumentsOrders'
+            AND type = 'P')
+BEGIN
+     EXEC('DROP PROCEDURE [dbo].[sp_MergeDocumentsOrders]')
+END
+EXEC('CREATE PROCEDURE [dbo].[sp_MergeDocumentsOrders]
+AS
+BEGIN
+	WITH CTE AS 
+	(SELECT *, ROW_NUMBER() 
+		OVER(
+				PARTITION BY
+					SHOP_ID,
+					PROV_CODE,
+					ORD_DATE,
+					DOC_ID,
+					PROD_ID
+				ORDER BY 
+					SHOP_ID,
+					PROV_CODE,
+					ORD_DATE,
+					DOC_ID,
+					PROD_ID
+
+		) rnk FROM [stage].[documents_orders]
+	)
+	DELETE FROM CTE
+	WHERE rnk > 1
+BEGIN TRY
+	BEGIN TRANSACTION
+		MERGE [dbo].[documents_orders] AS TARGET
+		USING [stage].[documents_orders] AS SOURCE
+		ON (TARGET.SHOP_ID = SOURCE.SHOP_ID
+			AND TARGET.PROV_CODE = SOURCE.PROV_CODE
+			AND TARGET.ORD_DATE = SOURCE.ORD_DATE
+			AND TARGET.DOC_ID = SOURCE.DOC_ID
+			AND TARGET.PROD_ID = SOURCE.PROD_ID)
+		WHEN NOT MATCHED 
+		THEN INSERT
+		VALUES (
+			SOURCE.SHOP_ID,
+			SOURCE.PROV_CODE,
+			SOURCE.ORD_DATE,
+			SOURCE.DOC_ID,
+			SOURCE.PROD_ID,
+			SOURCE.QTY,
+			SOURCE.A_SHIFT,
+			SOURCE.CS,
+			SOURCE.AUTO_ORD
+		);
+		TRUNCATE TABLE [stage].[documents_orders]
+	COMMIT TRANSACTION
+END TRY
+BEGIN CATCH
+	IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION
+	INSERT INTO [service].[stage_errors] (STAGE_PROC, PROBLEM, DATE_TIME) VALUES (''sp_MergeDocumentsOrders'',
+		ERROR_MESSAGE(), CURRENT_TIMESTAMP)
+END CATCH
+END')

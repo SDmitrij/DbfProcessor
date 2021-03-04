@@ -23,21 +23,29 @@ WITH CTE AS
 	)
 DELETE FROM CTE
 WHERE rnk > 1
-
-	MERGE [dbo].[sales_plan] AS target
-	USING [stage].[sales_plan] AS source
-		ON (target.SHOP_ID = source.SHOP_ID 
-		AND target.DATE = source.DATE)
-	WHEN NOT MATCHED
-		THEN INSERT 
-			VALUES
-			(
-			   source.[DATE]
-			  ,source.[SHOP_ID]
-			  ,source.[AM_HOURS]
-			  ,source.[AM_DAY]
-			  ,source.[AM_NIGHT]
-			);
-TRUNCATE TABLE [stage].[sales_plan]
+BEGIN TRY
+	BEGIN TRANSACTION
+		MERGE [dbo].[sales_plan] AS target
+		USING [stage].[sales_plan] AS source
+			ON (target.SHOP_ID = source.SHOP_ID 
+			AND target.DATE = source.DATE)
+		WHEN NOT MATCHED
+			THEN INSERT 
+				VALUES
+				(
+				   source.[DATE]
+				  ,source.[SHOP_ID]
+				  ,source.[AM_HOURS]
+				  ,source.[AM_DAY]
+				  ,source.[AM_NIGHT]
+				);
+		TRUNCATE TABLE [stage].[sales_plan]
+	COMMIT TRANSACTION
+END TRY
+BEGIN CATCH
+	IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION
+	INSERT INTO [service].[stage_errors] (STAGE_PROC, PROBLEM, DATE_TIME) VALUES (''sp_MergeSalesPlan'',
+		ERROR_MESSAGE(), CURRENT_TIMESTAMP)
+END CATCH
 END')
 

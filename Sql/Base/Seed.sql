@@ -20,6 +20,17 @@ BEGIN
 	)')
 END
 
+IF NOT EXISTS(SELECT * FROM information_schema.tables WHERE table_schema = 'service' AND table_name = 'stage_errors')
+BEGIN
+	EXEC('CREATE TABLE [service].[stage_errors]
+	(
+		ID INT PRIMARY KEY IDENTITY(1,1),
+		STAGE_PROC CHAR(100),
+		PROBLEM NVARCHAR(MAX),
+		DATE_TIME SMALLDATETIME
+	)')
+END
+
 IF EXISTS 
 (SELECT * FROM sys.objects 
 WHERE object_id = OBJECT_ID(N'[dbo].[fn_NotBulkedDbfs]') 

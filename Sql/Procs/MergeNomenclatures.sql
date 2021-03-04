@@ -25,24 +25,33 @@ WITH CTE AS
 DELETE FROM CTE
 WHERE rnk > 1
 
-	MERGE [dbo].[nomenclatures] AS target
-	USING [stage].[nomenclatures] AS source
-		ON (target.G_ID = source.G_ID
-		AND target.GO_CODE = source.GO_CODE
-		AND target.GO_1CCODE = source.GO_1CCODE)
-	WHEN NOT MATCHED
-		THEN INSERT 
-			VALUES
-			(
-			  source.G_ID,
-			  source.GO_CODE,
-			  source.GO_1CCODE,
-			  source.GO_NAME,
-			  source.TM_NAME,
-			  source.TM_1CCODE,
-			  source.GO_EXP_DT,
-			  source.GO_BRUTTO,
-			  source.PRV_LABEL
-			);
-TRUNCATE TABLE [stage].[nomenclatures]
+BEGIN TRY
+	BEGIN TRANSACTION
+		MERGE [dbo].[nomenclatures] AS target
+		USING [stage].[nomenclatures] AS source
+			ON (target.G_ID = source.G_ID
+			AND target.GO_CODE = source.GO_CODE
+			AND target.GO_1CCODE = source.GO_1CCODE)
+		WHEN NOT MATCHED
+			THEN INSERT 
+				VALUES
+				(
+				  source.G_ID,
+				  source.GO_CODE,
+				  source.GO_1CCODE,
+				  source.GO_NAME,
+				  source.TM_NAME,
+				  source.TM_1CCODE,
+				  source.GO_EXP_DT,
+				  source.GO_BRUTTO,
+				  source.PRV_LABEL
+				);
+		TRUNCATE TABLE [stage].[nomenclatures]
+	COMMIT TRANSACTION
+END TRY
+BEGIN CATCH
+	IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION
+	INSERT INTO [service].[stage_errors] (STAGE_PROC, PROBLEM, DATE_TIME) VALUES (''sp_MergeNomenclatures'',
+		ERROR_MESSAGE(), CURRENT_TIMESTAMP)
+END CATCH
 END')

@@ -128,7 +128,7 @@ namespace DbfProcessor.Core
                 }
                 else
                 {
-                    Log.Accept(new Execution($"No need to sync {dbfFile.Name}, " +
+                    Log.Accept(new Execution($"No need to sync [{dbfFile.Name}] of pack: [{_currentPackage}], " +
                         $"it has already handled or ignored",
                         LoggingType.Info));
                 }

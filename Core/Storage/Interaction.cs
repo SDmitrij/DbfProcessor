@@ -102,6 +102,7 @@ namespace DbfProcessor.Core.Storage
             string sqlStageQuery = File.ReadAllText(stageFile.FullName);
             if (sqlStageQuery.Equals(string.Empty))
                 throw new InteractionException($"Stage sql file {stageFile.Name} does not have any content");
+            Log.Accept(new Execution("Staging...", LoggingType.Info));
             ExecuteNonParameterized(sqlStageQuery);
         }
 

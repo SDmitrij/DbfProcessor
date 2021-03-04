@@ -7,3 +7,4 @@ EXEC [dbo].[sp_MergeSalesPlan];
 EXEC [dbo].[sp_MergeNomenclatures];
 EXEC [dbo].[sp_MergeGroups];
 EXEC [dbo].[sp_MergeReceiptsWithDiscCards];
+EXEC [dbo].[sp_MergeDocumentsOrders];
