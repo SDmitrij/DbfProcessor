@@ -71,7 +71,7 @@ namespace DbfProcessor.Core.Storage
 
         public bool GetSyncInfo(string dbfName, string package)
         {
-            string query = "SELECT [dbo].[fn_NotBulkedDbfs](@dbf, @pack)";
+            string query = "SELECT [dbo].[fn_CheckBulked](@dbf, @pack)";
             using SqlConnection connection = new SqlConnection(Config.SqlServerConn);
             connection.Open();
             SqlCommand command = new SqlCommand(query, connection);
@@ -268,7 +268,6 @@ namespace DbfProcessor.Core.Storage
             =>
             Log.Accept(new Execution(string.Format("\tTable: [{0}], pack: [{1}] copied: {2}",
                 _tableInfo.TableName, _currentPackage, e.RowsCopied), LoggingType.Info));
-        
 
         private void BuildColumnMappings(SqlBulkCopy sqlBulkCopy)
         {

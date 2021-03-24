@@ -12,11 +12,11 @@ IF NOT EXISTS(SELECT * FROM information_schema.tables WHERE table_schema = 'serv
 BEGIN
 	EXEC('CREATE TABLE [service].[sync_info]
 	(
-		[Id] INT NOT NULL PRIMARY KEY IDENTITY(1, 1),
-		[PackName] CHAR(50) NOT NULL,
-		[DbfName] CHAR(50) NOT NULL,
-		[Bulked] BIT NOT NULL,
-		[Time] SMALLDATETIME
+		[ID] INT NOT NULL PRIMARY KEY IDENTITY(1, 1),
+		[PACK_NAME] CHAR(50) NOT NULL,
+		[DBF_NAME] CHAR(50) NOT NULL,
+		[BULKED] BIT NOT NULL,
+		[TIME] SMALLDATETIME
 	)')
 END
 
@@ -24,21 +24,21 @@ IF NOT EXISTS(SELECT * FROM information_schema.tables WHERE table_schema = 'serv
 BEGIN
 	EXEC('CREATE TABLE [service].[stage_errors]
 	(
-		ID INT PRIMARY KEY IDENTITY(1,1),
-		STAGE_PROC CHAR(100),
-		PROBLEM NVARCHAR(MAX),
-		DATE_TIME SMALLDATETIME
+		[ID] INT PRIMARY KEY IDENTITY(1,1),
+		[STAGE_PROC] CHAR(100),
+		[PROBLEM] NVARCHAR(MAX),
+		[DATE_TIME] SMALLDATETIME
 	)')
 END
 
 IF EXISTS 
 (SELECT * FROM sys.objects 
-WHERE object_id = OBJECT_ID(N'[dbo].[fn_NotBulkedDbfs]') 
+WHERE object_id = OBJECT_ID(N'[dbo].[fn_CheckBulked]') 
 AND type in (N'FN', N'IF', N'TF', N'FS', N'FT'))
 BEGIN
-	EXEC('DROP FUNCTION [dbo].[fn_NotBulkedDbfs]');
+	EXEC('DROP FUNCTION [dbo].[fn_CheckBulked]');
 END
-EXEC('CREATE FUNCTION [dbo].[fn_NotBulkedDbfs]
+EXEC('CREATE FUNCTION [dbo].[fn_CheckBulked]
 (
 	@dbfName CHAR(50),
 	@packName CHAR(50)
@@ -47,10 +47,10 @@ RETURNS INT
 AS
 BEGIN
 	DECLARE @res INT
-	IF EXISTS (SELECT [Id] FROM [service].[sync_info] WHERE 
-	[DbfName] = @dbfName
-	AND [PackName] = @packName 
-	AND [Bulked] = 1)
+	IF EXISTS (SELECT [ID] FROM [service].[sync_info] WHERE 
+	[DBF_NAME] = @dbfName
+	AND [PACK_NAME] = @packName 
+	AND [BULKED] = 1)
 		SET @res = 1;
 	ELSE
 		SET @res = 0;
@@ -72,17 +72,17 @@ EXEC('CREATE PROCEDURE [dbo].[sp_InsertSyncInfo]
 	@time SMALLDATETIME
 AS
 BEGIN
-	IF EXISTS (SELECT * FROM [service].[sync_info] WHERE PackName = @packName AND DbfName = @dbfName)
+	IF EXISTS (SELECT * FROM [service].[sync_info] WHERE [PACK_NAME] = @packName AND [DBF_NAME] = @dbfName)
 	BEGIN
 		UPDATE [service].[sync_info]
 		SET 
-			[Bulked] = @bulked,
-			[Time] = @time
-		WHERE PackName = @packName AND DbfName = @dbfName
+			[BULKED] = @bulked,
+			[TIME] = @time
+		WHERE [PACK_NAME] = @packName AND [DBF_NAME] = @dbfName
 	END
 	ELSE
 	BEGIN
-		INSERT INTO [service].[sync_info] ([PackName], [DbfName], [Bulked], [Time])
+		INSERT INTO [service].[sync_info] ([PACK_NAME], [DBF_NAME], [BULKED], [TIME])
 		VALUES (@packName, @dbfName, @bulked, @time)
 	END
 END')
