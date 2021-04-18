@@ -5,8 +5,7 @@ namespace DbfProcessor.Out
 {
     public class Logging
     {
-        private static Logging _logging;
-        private Logging()
+        public Logging()
         {
             if (!Directory.Exists(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Results")))
                 Directory.CreateDirectory(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Results"));
@@ -38,12 +37,6 @@ namespace DbfProcessor.Out
                 Console.ResetColor();
                 return;
             }
-        }
-
-        public static Logging GetLogging()
-        {
-            if (_logging is null) _logging = new Logging();
-            return _logging;
         }
     }
 }

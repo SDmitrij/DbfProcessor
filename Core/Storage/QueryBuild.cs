@@ -11,32 +11,35 @@ namespace DbfProcessor.Core.Storage
     public class QueryBuild
     {
         #region private fields
-        private SharedParent _parent;
-        private TableInfo _tableInfo;
+        private readonly Logging _log;
+        private readonly Impersonation _impersonation;
         #endregion
-        #region private properties
-        private static Logging Log => Logging.GetLogging();
-        private static Impersonation Impersonation => Impersonation.GetInstance();
-        #endregion
+
+        public QueryBuild(Logging log, Impersonation impersonation)
+        {
+            _log = log;
+            _impersonation = impersonation;
+        }
+
         public void Build(SharedParent parent)
         {
             try
             {
-                _parent = parent;
-                _parent.SeedQueries = new List<Query>();
-                _tableInfo = Impersonation.Get(_parent.TableType);
+                parent.SeedQueries = new List<Query>();
+                TableInfo info = _impersonation.Get(parent.TableType);
 
-                Create();
-                if (_tableInfo.UniqueColumns.Count > 0) Index();
+                Create(info, parent);
+                if (info.UniqueColumns.Count > 0) 
+                    Index(info, parent);
             } catch (Exception e)
             {
-                Log.Accept(new Execution($"Failed to build query for {_parent.TableType} " +
+                _log.Accept(new Execution($"Failed to build query for {parent.TableType} " +
                     $"problem: {e.Message}"));
                 throw;
             }
         }
         #region private
-        private void Create()
+        private void Create(TableInfo info, SharedParent parent)
         {
             string[] schemas = { "stage", "dbo" };
             foreach (string schema in schemas)
@@ -44,14 +47,14 @@ namespace DbfProcessor.Core.Storage
                 StringBuilder query =
                 new StringBuilder(
                     $"IF NOT EXISTS(SELECT * FROM information_schema.tables WHERE table_schema = '{schema}' " +
-                    $"AND table_name = '{_tableInfo.TableName}')\n");
-                query.Append($"\tCREATE TABLE [{schema}].[{_tableInfo.TableName}] (\n");
+                    $"AND table_name = '{info.TableName}')\n");
+                query.Append($"\tCREATE TABLE [{schema}].[{info.TableName}] (\n");
 
-                foreach (var col in _tableInfo.SqlColumnTypes)
+                foreach (var col in info.SqlColumnTypes)
                     query.Append($"\t[{col.Key}] {col.Value},\n");
                 query.Append(")\n");
 
-                _parent.SeedQueries.Add(new Query
+                parent.SeedQueries.Add(new Query
                 {
                     QueryBody = ReplaceLastOccurrence(query.ToString(), ",", string.Empty),
                     QueryType = QueryType.Create
@@ -59,19 +62,19 @@ namespace DbfProcessor.Core.Storage
             }
         }
 
-        private void Index()
+        private void Index(TableInfo info, SharedParent parent)
         {
             StringBuilder indexQuery = new StringBuilder($"IF NOT EXISTS(SELECT * FROM sys.indexes " +
-                $"WHERE name = '{_tableInfo.TableName}_clustered' AND object_id " +
-                $"= OBJECT_ID('[dbo].[{_tableInfo.TableName}]'))\nBEGIN\n");
+                $"WHERE name = '{info.TableName}_clustered' AND object_id " +
+                $"= OBJECT_ID('[dbo].[{info.TableName}]'))\nBEGIN\n");
 
-            indexQuery.Append($"\tEXEC('CREATE UNIQUE CLUSTERED INDEX [{_tableInfo.TableName}_clustered] " +
-                    $"ON [dbo].[{_tableInfo.TableName}] (\n");
+            indexQuery.Append($"\tEXEC('CREATE UNIQUE CLUSTERED INDEX [{info.TableName}_clustered] " +
+                    $"ON [dbo].[{info.TableName}] (\n");
 
-            foreach (var constraint in _tableInfo.UniqueColumns)
+            foreach (var constraint in info.UniqueColumns)
                 indexQuery.Append($"\t[{constraint}] ASC,\n");
 
-            _parent.SeedQueries.Add(new Query
+            parent.SeedQueries.Add(new Query
             {
                 QueryBody = ReplaceLastOccurrence(indexQuery.ToString(), ",", string.Empty) +
                     ")WITH (ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON)')\nEND\n",

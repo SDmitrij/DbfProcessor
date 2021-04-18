@@ -13,33 +13,32 @@ namespace DbfProcessor.Core
 {
     public class Extract
     {
-        #region private fields
         private readonly ICollection<SharedParent> _parents;
-        private Extraction _extractionModel;
-        private DataTable _dbfData;
-        private TableInfo _info;
-        #endregion
-        #region private properties
-        private static Logging Log => Logging.GetLogging();
-        private static Config Config => ConfigInstance.GetInstance().Config;
-        private static Impersonation Impersonation => Impersonation.GetInstance();
-        #endregion
-        public Extract() => _parents = new List<SharedParent>();
+        private readonly Logging _log;
+        private readonly ConfigModel _configModel;
+        private readonly Impersonation _impersonation;
+        
 
-        public void Process(ICollection<Extraction> extractionModels)
+        public Extract(Logging log, Config config, Impersonation impersonation)
+        {
+            _log = log;
+            _configModel = config.Get();
+            _impersonation = impersonation;
+        }
+
+        public void Process(ICollection<ExtractionModel> extractionModels)
         {
             if (extractionModels.Count == 0) return;
-            foreach (Extraction extractionModel in extractionModels)
+            foreach (ExtractionModel extractionModel in extractionModels)
             {
-                _extractionModel = extractionModel;
-                _info = Impersonation.Get(_extractionModel.TableType);
+                TableInfo info = _impersonation.Get(extractionModel.TableType);
                 try
                 {
-                    FillShareds();
+                    FillShareds(extractionModel, info);
                 }
                 catch (ExtractionException e)
                 {
-                    Log.Accept(new Execution($"{e.Message}"));
+                    _log.Accept(new Execution($"{e.Message}"));
                     throw;
                 }
             }
@@ -49,7 +48,7 @@ namespace DbfProcessor.Core
         {
             if (_parents.Count == 0)
             {
-                Log.Accept(new Execution("There is nothing to sync", LoggingType.Info));
+                _log.Accept(new Execution("There is nothing to sync", LoggingType.Info));
                 return new List<SharedParent>();
             }
             return _parents;
@@ -58,64 +57,61 @@ namespace DbfProcessor.Core
         public void ClearParents() => _parents.Clear();
 
         #region private
-        private void FillShareds()
+        private void FillShareds(ExtractionModel model, TableInfo info)
         {
-            if (!File.Exists(Path.Combine(Config.DbfLookUpDir, _extractionModel.DbfName)))
-                throw new ExtractionException($"Can't find dbf file to receive data on: {_extractionModel.FullDescription}");
-            _dbfData = ReceiveData();
-            if (_info.CustomColumns.Count > 0)
-            {
-                AddCustomColumns();
-                RetrieveShopNum();
-            }
-            if (!_parents.Any(t => t.TableType == _extractionModel.TableType))
+            if (!File.Exists(Path.Combine(_configModel.DbfLookUpDir, model.DbfName)))
+                throw new ExtractionException($"Can't find dbf file to receive data on: {model.FullDescription}");
+
+            DataTable data = ReceiveData(model, info);
+
+            if (info.CustomColumns.Count > 0) Custom(model, data, info);
+
+            if (!_parents.Any(t => t.TableType.Equals(model.TableType)))
             {
                 _parents.Add(new SharedParent
                 {
-                    TableType = _extractionModel.TableType,
+                    TableType = model.TableType,
                     SharedChilds = new List<SharedChild>()
                 });
             }
-            SharedParent parent = _parents.Where(t => t.TableType.Equals(_extractionModel.TableType))
+            SharedParent parent = _parents
+                .Where(t => t.TableType.Equals(model.TableType))
                 .FirstOrDefault();
             if (parent is null) 
-                throw new ExtractionException($"Can't find parent table with type, {_extractionModel.FullDescription}");
+                throw new ExtractionException($"Can't find parent table with type, {model.FullDescription}");
+
             SharedChild child = new SharedChild
             {
-                FileName = _extractionModel.DbfName,
-                PackageName = _extractionModel.Package,
-                Rows = _dbfData.Select()
+                FileName = model.DbfName,
+                PackageName = model.Package,
+                Rows = data.Select()
             };
             parent.SharedChilds.Add(child);
         }
 
-        private DataTable ReceiveData()
+        private DataTable ReceiveData(ExtractionModel model, TableInfo info)
         {
-            using OdbcConnection connection = new OdbcConnection(Config.DbfOdbcConn);
+            using OdbcConnection connection = new OdbcConnection(_configModel.DbfOdbcConn);
             connection.Open();
             OdbcCommand command = connection.CreateCommand();
             DataTable dataTable = new DataTable();
            
-            string toSelect = string.Join(",", _info.SqlColumnTypes.Keys
-                .Except(_info.CustomColumns).ToList());
+            string toSelect = string.Join(",", info.SqlColumnTypes.Keys
+                .Except(info.CustomColumns).ToList());
 
-            command.CommandText = $"SELECT {toSelect} FROM {_extractionModel.TableName}";
+            command.CommandText = $"SELECT {toSelect} FROM {model.TableName}";
             dataTable.Load(command.ExecuteReader());
             return dataTable;
         }
 
-        private void AddCustomColumns()
+        private void Custom(ExtractionModel model, DataTable data, TableInfo info)
         {
-            foreach (string customCol in _info.CustomColumns)
-                _dbfData.Columns.Add(customCol, typeof(int));
-        }
-
-        private void RetrieveShopNum()
-        {
-            if (!int.TryParse(_extractionModel.TableName.Substring(0, _extractionModel.TableName.IndexOf("_")), out int shopNum))
-                throw new ExtractionException($"Can't parse shop number: {_extractionModel.FullDescription}");
-            foreach (DataRow row in _dbfData.Rows)
-                row[_dbfData.Columns.Count - 1] = shopNum;
+            foreach (string customCol in info.CustomColumns)
+                data.Columns.Add(customCol, typeof(int));
+            if (!int.TryParse(model.TableName.Substring(0, model.TableName.IndexOf("_")), out int shopNum))
+                throw new ExtractionException($"Can't parse shop number: {model.FullDescription}");
+            foreach (DataRow row in data.Rows)
+                row[data.Columns.Count - 1] = shopNum;
         }
         #endregion
     }

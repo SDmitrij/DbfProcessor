@@ -1,4 +1,5 @@
-﻿using DbfProcessor.Models.Infrastructure;
+﻿using DbfProcessor.Core.Exceptions;
+using DbfProcessor.Models.Infrastructure;
 using DbfProcessor.Out;
 using DbfProcessor.Out.Concrete;
 using System;
@@ -8,21 +9,28 @@ using System.Text.Json;
 
 namespace DbfProcessor.Models
 {
-    public class ImpersonationDict
-    {
-        public Dictionary<string, TableInfo> Impersonations { get; set; }
-    }
-
     public class Impersonation
     {
-        private ImpersonationDict _impersonationDict;
-        private static Impersonation _impersonation;
-        private static Logging Log => Logging.GetLogging();
-
-        public static Impersonation GetInstance()
+        class Impersonations
         {
-            if (_impersonation is null) _impersonation = new Impersonation();
-            return _impersonation;
+            public IDictionary<string, TableInfo> TypeInfo { get; set; }
+        }
+
+        private readonly Logging _logging;
+        private Impersonations _typeInfo;
+
+        public Impersonation(Logging logging)
+        {
+            _logging = logging;
+            try
+            {
+                Deserialize();
+            }
+            catch (JsonException e)
+            {
+                _logging.Accept(new Execution(e.Message));
+                throw;
+            }
         }
 
         public TableInfo Get(string tableType)
@@ -31,22 +39,9 @@ namespace DbfProcessor.Models
             {
                 return FindInDictionary(tableType);
             }
-            catch (Exception e)
+            catch (ImpersonationException e)
             {
-                Log.Accept(new Execution(e.Message));
-                throw;
-            }
-        }
-
-        private Impersonation()
-        {
-            try
-            {
-                Deserialize();
-            }
-            catch (Exception e)
-            {
-                Log.Accept(new Execution(e.Message));
+                _logging.Accept(new Execution(e.Message));
                 throw;
             }
         }
@@ -55,15 +50,15 @@ namespace DbfProcessor.Models
         {
             string path = $"{AppDomain.CurrentDomain.BaseDirectory}\\impersonations.json";
             if (!File.Exists(path))
-                throw new Exception("Can't find impersonations.json file");
+                throw new InfrastructureException("Can't find impersonations.json file");
 
-            _impersonationDict = JsonSerializer.Deserialize<ImpersonationDict>(File.ReadAllText(path));
+            _typeInfo = JsonSerializer.Deserialize<Impersonations>(File.ReadAllText(path));
         }
 
         private TableInfo FindInDictionary(string tableType)
         {
-            if (!_impersonationDict.Impersonations.TryGetValue(tableType, out TableInfo table))
-                throw new Exception($"Can't get table info by type: [{tableType}]");
+            if (!_typeInfo.TypeInfo.TryGetValue(tableType, out TableInfo table))
+                throw new ImpersonationException($"Can't get table info by type: [{tableType}]");
             return table;
         }
     }

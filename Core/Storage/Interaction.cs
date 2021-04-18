@@ -15,17 +15,21 @@ namespace DbfProcessor.Core.Storage
     {
         #region private fields
         private string _currentPackage;
-        private SharedParent _parent;
         private TableInfo _tableInfo;
         private ICollection<SharedParent> _parents;
+        private readonly Logging _log;
+        private readonly ConfigModel _configModel;
+        private readonly Impersonation _impersonation;
         private readonly QueryBuild _queryBuild;
         #endregion
-        #region private properties
-        private static Impersonation Impersonation => Impersonation.GetInstance();
-        private static Config Config => ConfigInstance.GetInstance().Config;
-        private static Logging Log => Logging.GetLogging();
-        #endregion
-        public Interaction() => _queryBuild = new QueryBuild();
+
+        public Interaction(Logging log, Config config, Impersonation impersonation, QueryBuild queryBuild)
+        {
+            _log = log;
+            _configModel = config.Get();
+            _impersonation = impersonation;
+            _queryBuild = queryBuild;
+        }
        
         public void Process(ICollection<SharedParent> parents)
         {
@@ -37,7 +41,7 @@ namespace DbfProcessor.Core.Storage
             }  
             catch (InteractionException e)
             {
-                Log.Accept(new Execution(e.Message));
+                _log.Accept(new Execution(e.Message));
                 throw;
             }
         }
@@ -50,7 +54,7 @@ namespace DbfProcessor.Core.Storage
             }
             catch (InteractionException e)
             {
-                Log.Accept(new Execution(e.Message));
+                _log.Accept(new Execution(e.Message));
                 throw;
             }
         }
@@ -64,7 +68,7 @@ namespace DbfProcessor.Core.Storage
             }
             catch (InteractionException e)
             {
-                Log.Accept(new Execution(e.Message));
+                _log.Accept(new Execution(e.Message));
                 throw;
             }
         }
@@ -72,7 +76,7 @@ namespace DbfProcessor.Core.Storage
         public bool GetSyncInfo(string dbfName, string package)
         {
             string query = "SELECT [dbo].[fn_CheckBulked](@dbf, @pack)";
-            using SqlConnection connection = new SqlConnection(Config.SqlServerConn);
+            using SqlConnection connection = new SqlConnection(_configModel.SqlServerConn);
             connection.Open();
             SqlCommand command = new SqlCommand(query, connection);
             command.Parameters.AddWithValue("@dbf", dbfName);
@@ -81,28 +85,34 @@ namespace DbfProcessor.Core.Storage
            
             if (!reader.HasRows)
             {
-                Log.Accept(new Execution("Sync table is empty...", LoggingType.Info));
+                _log.Accept(new Execution("Sync table is empty...", LoggingType.Info));
                 return false;
             }
             reader.Read();
             if (reader.GetInt32(0) == 0) return false;
             else return true;
         }
+
         #region private
         private void Stage()
         {
             string sqlStageDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Sql", "Stage");
             if (!Directory.Exists(sqlStageDir))
                 throw new InteractionException("Directory with stage sql does not exists!");
+
             DirectoryInfo sqlStageDirInf = new DirectoryInfo(sqlStageDir);
             FileInfo stageFile = sqlStageDirInf.GetFiles("*.sql")
-                .Where(f => f.Name.Replace(".sql", string.Empty).Equals("Stage")).FirstOrDefault();
+                .Where(f => f.Name.Replace(".sql", string.Empty).Equals("Stage"))
+                .FirstOrDefault();
+
             if (stageFile is null)
                 throw new InteractionException("Can't find stage sql file");
+
             string sqlStageQuery = File.ReadAllText(stageFile.FullName);
             if (sqlStageQuery.Equals(string.Empty))
                 throw new InteractionException($"Stage sql file {stageFile.Name} does not have any content");
-            Log.Accept(new Execution("Staging...", LoggingType.Info));
+
+            _log.Accept(new Execution("Staging...", LoggingType.Info));
             ExecuteNonParameterized(sqlStageQuery);
         }
 
@@ -111,6 +121,7 @@ namespace DbfProcessor.Core.Storage
             string procsSqlDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Sql", "Procs");
             if (!Directory.Exists(procsSqlDir))
                 throw new InteractionException("Directory with sql procedures does not exists!");
+
             DirectoryInfo procsSqlDirInf = new DirectoryInfo(procsSqlDir);
             FileInfo[] sqlProcedureFiles = procsSqlDirInf.GetFiles("*.sql");
             if (sqlProcedureFiles.Length == 0)
@@ -129,12 +140,11 @@ namespace DbfProcessor.Core.Storage
         {
             foreach (SharedParent parent in _parents)
             {
-                _parent = parent;
-                _tableInfo = Impersonation.Get(_parent.TableType);
-                _queryBuild.Build(_parent);
-                TableSeed();
-                if (_tableInfo.UniqueColumns.Count > 0) ApplyIndex();
-                BulkCopy();
+                _tableInfo = _impersonation.Get(parent.TableType);
+                _queryBuild.Build(parent);
+                TableSeed(parent);
+                if (_tableInfo.UniqueColumns.Count > 0) ApplyIndex(parent);
+                BulkCopy(parent);
             }
         }
 
@@ -161,7 +171,7 @@ namespace DbfProcessor.Core.Storage
             ExecuteNonParameterized(baseSql);
         }
 
-        private void BulkCopy()
+        private void BulkCopy(SharedParent parent)
         {
             string sql = "EXEC [dbo].[sp_InsertSyncInfo] @packName, @fileName, @bulked, @timeNow;";
             static IDictionary<string, object> initParams(string pack, string dbf, byte bulked)
@@ -175,7 +185,7 @@ namespace DbfProcessor.Core.Storage
                 };
             }
 
-            foreach (SharedChild child in _parent.SharedChilds)
+            foreach (SharedChild child in parent.SharedChilds)
             {
                 try
                 {
@@ -186,21 +196,21 @@ namespace DbfProcessor.Core.Storage
                 catch (Exception e)
                 {
                     ExecuteParameterized(sql, initParams(child.PackageName, child.FileName, 0));
-                    Log.Accept(new Execution(e.Message));
+                    _log.Accept(new Execution(e.Message));
                     throw;
                 }
             }
         }
 
-        private void TableSeed()
+        private void TableSeed(SharedParent parent)
         {
-            foreach (Query query in _parent.SeedQueries.Where(q => q.QueryType == QueryType.Create))
+            foreach (Query query in parent.SeedQueries.Where(q => q.QueryType == QueryType.Create))
                 ExecuteNonParameterized(query.QueryBody);
         }
 
-        private void ApplyIndex()
+        private void ApplyIndex(SharedParent parent)
         {
-            Query indexQuery = _parent.SeedQueries
+            Query indexQuery = parent.SeedQueries
                 .Where(q => q.QueryType == QueryType.Index).FirstOrDefault();
             if (indexQuery is null) 
                 throw new InteractionException($"Can't get index query for table {_tableInfo.TableName}");
@@ -211,7 +221,7 @@ namespace DbfProcessor.Core.Storage
         {
             try
             {
-                using SqlConnection connection = new SqlConnection(Config.SqlServerConn);
+                using SqlConnection connection = new SqlConnection(_configModel.SqlServerConn);
                 connection.Open();
                 SqlCommand command = new SqlCommand(sql, connection)
                 {
@@ -221,8 +231,8 @@ namespace DbfProcessor.Core.Storage
             } 
             catch (Exception e)
             {
-                Log.Accept(new Execution(e.Message));
-                Log.Accept(new Sql(new Query { QueryBody = sql }));
+                _log.Accept(new Execution(e.Message));
+                _log.Accept(new Sql(new Query { QueryBody = sql }));
                 throw;
             }
         }
@@ -231,7 +241,7 @@ namespace DbfProcessor.Core.Storage
         {
             try
             {
-                using SqlConnection connection = new SqlConnection(Config.SqlServerConn);
+                using SqlConnection connection = new SqlConnection(_configModel.SqlServerConn);
                 connection.Open();
                 SqlCommand command = new SqlCommand(sql, connection)
                 {
@@ -243,20 +253,20 @@ namespace DbfProcessor.Core.Storage
             }
             catch (Exception e)
             {
-                Log.Accept(new Execution(e.Message));
-                Log.Accept(new Sql(new Query { QueryBody = sql }));
+                _log.Accept(new Execution(e.Message));
+                _log.Accept(new Sql(new Query { QueryBody = sql }));
                 throw;
             }
         }
 
         private void BulkExecute(SharedChild child)
         {
-            using SqlConnection connection = new SqlConnection(Config.SqlServerConn);
+            using SqlConnection connection = new SqlConnection(_configModel.SqlServerConn);
             connection.Open();
             using SqlBulkCopy sqlBulkCopy = new SqlBulkCopy(connection)
             {
                 DestinationTableName = $"[stage].[{_tableInfo.TableName}]",
-                BatchSize = Config.BatchSize
+                BatchSize = _configModel.BatchSize
             };
             sqlBulkCopy.SqlRowsCopied += new SqlRowsCopiedEventHandler(OnSqlRowsCopied);
             sqlBulkCopy.NotifyAfter = 50;
@@ -266,7 +276,7 @@ namespace DbfProcessor.Core.Storage
 
         private void OnSqlRowsCopied(object sender, SqlRowsCopiedEventArgs e)
             =>
-            Log.Accept(new Execution(string.Format("\tTable: [{0}], pack: [{1}] copied: {2}",
+            _log.Accept(new Execution(string.Format("\tTable: [{0}], pack: [{1}] copied: {2}",
                 _tableInfo.TableName, _currentPackage, e.RowsCopied), LoggingType.Info));
 
         private void BuildColumnMappings(SqlBulkCopy sqlBulkCopy)

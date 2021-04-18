@@ -1,4 +1,5 @@
-﻿using DbfProcessor.Out;
+﻿using DbfProcessor.Core.Exceptions;
+using DbfProcessor.Out;
 using DbfProcessor.Out.Concrete;
 using System;
 using System.IO;
@@ -8,45 +9,29 @@ namespace DbfProcessor.Models
 {
     public class Config
     {
-        public string ExchangeDirectory { get; set; }
-        public string DbfLookUpDir { get; set; }
-        public string DbfOdbcConn { get; set; }
-        public string SqlServerConn { get; set; }
-        public int BatchSize { get; set; }
-    }
+        private ConfigModel _config;
 
-    public class ConfigInstance
-    {
-        private Config _config;
-        private static ConfigInstance _instance;
-        public Config Config => _config;
-        private static Logging Log => Logging.GetLogging();
-
-        private ConfigInstance()
+        public Config(Logging logging)
         {
             try
             {
                 Deserialize();
             } 
-            catch (Exception e)
+            catch (JsonException e)
             {
-                Log.Accept(new Execution(e.Message));
+                logging.Accept(new Execution(e.Message));
                 throw;
             }
         }
+
+        public ConfigModel Get() => _config;
 
         private void Deserialize()
         {
             string path = $"{AppDomain.CurrentDomain.BaseDirectory}\\config.json";
             if (!File.Exists(path)) 
-                throw new Exception("Can't find config.json file");
-            _config = JsonSerializer.Deserialize<Config>(File.ReadAllText(path));
-        }
-
-        public static ConfigInstance GetInstance()
-        {
-            if (_instance is null) _instance = new ConfigInstance();
-            return _instance;
+                throw new InfrastructureException("Can't find config.json file");
+            _config = JsonSerializer.Deserialize<ConfigModel>(File.ReadAllText(path));
         }
     }
 }

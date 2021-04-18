@@ -1,4 +1,5 @@
-﻿using DbfProcessor.Core;
+﻿using Autofac;
+using DbfProcessor.Core;
 
 namespace DbfProcessor
 {
@@ -6,7 +7,9 @@ namespace DbfProcessor
     {
         static void Main(string[] args)
         {
-            Process.Run();
+            using var scope = ContainerInitializer.Initialize().BeginLifetimeScope();
+            var app = scope.Resolve<Application>();
+            app.Run();
         }
     }
 }
