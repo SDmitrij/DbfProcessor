@@ -16,21 +16,13 @@ namespace DbfProcessor.Models
             public IDictionary<string, TableInfo> TypeInfo { get; set; }
         }
 
-        private readonly Logging _logging;
-        private Impersonations _typeInfo;
+        private readonly Logging _log;
+        private Impersonations _impersonations;
 
-        public Impersonation(Logging logging)
+        public Impersonation(Logging log)
         {
-            _logging = logging;
-            try
-            {
-                Deserialize();
-            }
-            catch (JsonException e)
-            {
-                _logging.Accept(new Execution(e.Message));
-                throw;
-            }
+            _log = log;
+            FillDictionary();
         }
 
         public TableInfo Get(string tableType)
@@ -41,7 +33,25 @@ namespace DbfProcessor.Models
             }
             catch (ImpersonationException e)
             {
-                _logging.Accept(new Execution(e.Message));
+                _log.Accept(new Execution(e.Message));
+                throw;
+            }
+        }
+
+        private void FillDictionary()
+        {
+            try
+            {
+                Deserialize();
+            }
+            catch (InfrastructureException e)
+            {
+                _log.Accept(new Execution(e.Message));
+                throw;
+            }
+            catch (JsonException e)
+            {
+                _log.Accept(new Execution(e.Message));
                 throw;
             }
         }
@@ -52,12 +62,12 @@ namespace DbfProcessor.Models
             if (!File.Exists(path))
                 throw new InfrastructureException("Can't find impersonations.json file");
 
-            _typeInfo = JsonSerializer.Deserialize<Impersonations>(File.ReadAllText(path));
+            _impersonations = JsonSerializer.Deserialize<Impersonations>(File.ReadAllText(path));
         }
 
         private TableInfo FindInDictionary(string tableType)
         {
-            if (!_typeInfo.TypeInfo.TryGetValue(tableType, out TableInfo table))
+            if (!_impersonations.TypeInfo.TryGetValue(tableType, out TableInfo table))
                 throw new ImpersonationException($"Can't get table info by type: [{tableType}]");
             return table;
         }

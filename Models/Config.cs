@@ -9,29 +9,34 @@ namespace DbfProcessor.Models
 {
     public class Config
     {
-        private ConfigModel _config;
+        private ConfigModel _configModel;
 
-        public Config(Logging logging)
+        public Config(Logging log)
         {
             try
             {
                 Deserialize();
-            } 
+            }
+            catch (InfrastructureException e)
+            {
+                log.Accept(new Execution(e.Message));
+                throw;
+            }
             catch (JsonException e)
             {
-                logging.Accept(new Execution(e.Message));
+                log.Accept(new Execution(e.Message));
                 throw;
             }
         }
 
-        public ConfigModel Get() => _config;
+        public ConfigModel Get() => _configModel;
 
         private void Deserialize()
         {
             string path = $"{AppDomain.CurrentDomain.BaseDirectory}\\config.json";
             if (!File.Exists(path)) 
                 throw new InfrastructureException("Can't find config.json file");
-            _config = JsonSerializer.Deserialize<ConfigModel>(File.ReadAllText(path));
+            _configModel = JsonSerializer.Deserialize<ConfigModel>(File.ReadAllText(path));
         }
     }
 }
