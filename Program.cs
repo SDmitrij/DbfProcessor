@@ -5,7 +5,7 @@ namespace DbfProcessor
 {
     class Program
     {
-        static void Main(string[] args)
+        static void Main()
         {
             using var scope = ContainerInitializer.Initialize().BeginLifetimeScope();
             var app = scope.Resolve<Application>();

@@ -1,23 +1,18 @@
 ﻿using DbfProcessor.Core.Exceptions;
+using DbfProcessor.Models;
 using DbfProcessor.Models.Infrastructure;
 using DbfProcessor.Out;
 using DbfProcessor.Out.Concrete;
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 
-namespace DbfProcessor.Models
+namespace DbfProcessor
 {
     public class Impersonation
     {
-        class Impersonations
-        {
-            public IDictionary<string, TableInfo> TypeInfo { get; set; }
-        }
-
         private readonly Logging _log;
-        private Impersonations _impersonations;
+        private ImpersonationModel _impersonationModel;
 
         public Impersonation(Logging log)
         {
@@ -58,16 +53,15 @@ namespace DbfProcessor.Models
 
         private void Deserialize()
         {
-            string path = $"{AppDomain.CurrentDomain.BaseDirectory}\\impersonations.json";
+            string path = $"{AppDomain.CurrentDomain.BaseDirectory}impersonations.json";
             if (!File.Exists(path))
                 throw new InfrastructureException("Can't find impersonations.json file");
-
-            _impersonations = JsonSerializer.Deserialize<Impersonations>(File.ReadAllText(path));
+            _impersonationModel = JsonSerializer.Deserialize<ImpersonationModel>(File.ReadAllText(path));
         }
 
         private TableInfo FindInDictionary(string tableType)
         {
-            if (!_impersonations.TypeInfo.TryGetValue(tableType, out TableInfo table))
+            if (!_impersonationModel.TypeInfo.TryGetValue(tableType, out TableInfo table))
                 throw new ImpersonationException($"Can't get table info by type: [{tableType}]");
             return table;
         }

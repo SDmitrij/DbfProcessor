@@ -1,7 +1,6 @@
 ﻿using Autofac;
 using DbfProcessor.Core;
 using DbfProcessor.Core.Storage;
-using DbfProcessor.Models;
 using DbfProcessor.Out;
 
 namespace DbfProcessor

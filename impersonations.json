@@ -1,5 +1,5 @@
 {
-  "Impersonations": {
+  "TypeInfo": {
     "K": {
 			"TableName": "receipts",
 			"Ignore": true,

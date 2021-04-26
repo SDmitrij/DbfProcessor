@@ -24,6 +24,7 @@ namespace DbfProcessor.Core
             _log = log;
             _configModel = config.Get();
             _impersonation = impersonation;
+            _parents = new List<SharedParent>();
         }
 
         public void Process(ICollection<ExtractionModel> extractionModels)

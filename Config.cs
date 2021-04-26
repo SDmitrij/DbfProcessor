@@ -1,11 +1,12 @@
 ﻿using DbfProcessor.Core.Exceptions;
+using DbfProcessor.Models;
 using DbfProcessor.Out;
 using DbfProcessor.Out.Concrete;
 using System;
 using System.IO;
 using System.Text.Json;
 
-namespace DbfProcessor.Models
+namespace DbfProcessor
 {
     public class Config
     {
@@ -33,7 +34,7 @@ namespace DbfProcessor.Models
 
         private void Deserialize()
         {
-            string path = $"{AppDomain.CurrentDomain.BaseDirectory}\\config.json";
+            string path = $"{AppDomain.CurrentDomain.BaseDirectory}config.json";
             if (!File.Exists(path)) 
                 throw new InfrastructureException("Can't find config.json file");
             _configModel = JsonSerializer.Deserialize<ConfigModel>(File.ReadAllText(path));
